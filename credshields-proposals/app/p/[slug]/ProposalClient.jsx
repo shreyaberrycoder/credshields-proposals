@@ -174,7 +174,7 @@ function ProposalContent({ proposal, disc }) {
             { day:'Day 1',   title:'Scope & Kickoff',         desc:'Align on objectives, contracts in scope, and timeline. Repo access granted. Slot locked with 50% deposit.' },
             { day:'Day 2–3', title:'Manual + AI Review',      desc:'Line-by-line manual review combined with SolidityScan AI engine. All findings cross-validated by senior auditors — zero false positives.' },
             { day:'Day 4',   title:'Draft Report Delivered',  desc:'All findings with severity ratings, exploit scenarios, and fix recommendations. Readable by devs and non-technical stakeholders.' },
-            { day:'Day 5',   title:'Your Team Applies Fixes', desc:'We're on Telegram/Discord to answer questions and review proposed solutions during remediation.' },
+            { day:'Day 5',   title:'Your Team Applies Fixes', desc:"We're on Telegram/Discord to answer questions and review proposed solutions during remediation.", },
             { day:'Day 6',   title:'Retest + Certification',  desc:'We verify every fix, check for new issues, and issue your public audit report, security badge, and on-chain seal.' },
           ].map((item, i) => (
             <div key={i} style={p.tlItem}>

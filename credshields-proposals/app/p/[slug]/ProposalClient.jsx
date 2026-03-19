@@ -35,7 +35,7 @@ export default function ProposalClient({ proposal }) {
       {!unlocked && (
         <div style={g.overlay}>
           <div style={g.box}>
-            <CredShieldsLogo height={28} style={{ marginBottom:'8px' }} />
+            <CredShieldsLogo height={52} style={{ marginBottom:'8px' }} />
             <div style={g.icon}>🔒</div>
             <h2 style={g.title}>Your Proposal is Ready</h2>
             <p style={g.sub}>
@@ -94,7 +94,7 @@ function ProposalContent({ proposal }) {
         <div style={p.coverBg} /><div style={p.coverGrid} />
         <div style={p.wrap}>
           <div style={p.logoLine}>
-            <CredShieldsLogo height={30} />
+            <CredShieldsLogo height={52} />
           </div>
           <div style={p.eyebrow}>— {config.eyebrow}</div>
           <h1 style={p.coverTitle}>
@@ -366,7 +366,7 @@ function ProposalContent({ proposal }) {
       {/* ── FOOTER ── */}
       <div style={p.wrap}>
         <footer style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'16px',padding:'32px 0',borderTop:'1px solid rgba(255,255,255,0.07)'}}>
-          <CredShieldsLogo height={22} />
+          <CredShieldsLogo height={52} />
           <p style={{fontSize:'12px',color:'#7a8a9e'}}>20A Tanjong Pagar Road, Singapore — 088443</p>
           <a href="https://credshields.com" target="_blank" rel="noreferrer"
             style={{fontSize:'12px',color:'#7a8a9e',textDecoration:'underline'}}>

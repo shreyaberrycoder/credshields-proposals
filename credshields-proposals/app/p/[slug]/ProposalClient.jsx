@@ -209,6 +209,57 @@ function ProposalContent({ proposal }) {
         </div>
       </Section>
 
+      {/* ── ADD-ON SERVICES ── */}
+      {type === 'smart_contract' && (
+        <Section label="Add-On Services" title={<>Enhance Your <span style={{color:'#4fffa4'}}>Audit Coverage</span></>}
+          sub="Optional services to strengthen your security posture beyond the core audit.">
+          <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+            {[
+              {
+                icon:'🔀',
+                title:'Fuzzing as a Service',
+                desc:'Automated property-based fuzzing of your smart contracts using tools like Echidna and Medusa. Uncovers edge-case vulnerabilities and unexpected state transitions that manual review can miss.',
+                badge:'Add-on · Quote on request',
+                cta:true,
+              },
+              {
+                icon:'🛠️',
+                title:'Development Issues Review',
+                desc:'A thorough review of your development practices, code quality, test coverage, and CI/CD pipeline. We identify gaps in your SDLC that could introduce vulnerabilities post-audit.',
+                badge:'Service · Included on request',
+                cta:false,
+              },
+              {
+                icon:'📜',
+                title:'Deployment Script Testing',
+                desc:'Review and testing of your deployment scripts, migration logic, and initialisation flows. Ensures your contracts deploy correctly and securely in production with no misconfigured state.',
+                badge:'Add-on · Quote on request',
+                cta:true,
+              },
+            ].map(item=>(
+              <div key={item.title} style={{background:'#0d1120',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'10px',padding:'24px',display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'20px',flexWrap:'wrap'}}>
+                <div style={{flex:1,minWidth:'260px'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px'}}>
+                    <span style={{fontSize:'22px'}}>{item.icon}</span>
+                    <span style={{fontWeight:700,fontSize:'15px'}}>{item.title}</span>
+                    <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',fontFamily:'monospace',background: item.cta ? 'rgba(245,197,66,0.08)' : 'rgba(79,255,164,0.08)',color: item.cta ? '#f5c542' : '#4fffa4',border: item.cta ? '1px solid rgba(245,197,66,0.2)' : '1px solid rgba(79,255,164,0.15)',whiteSpace:'nowrap'}}>
+                      {item.badge}
+                    </span>
+                  </div>
+                  <p style={{fontSize:'13px',color:'#7a8a9e',lineHeight:1.65,maxWidth:'560px'}}>{item.desc}</p>
+                </div>
+                {item.cta && (
+                  <a href="https://calendly.com/credshields-marketing/15min" target="_blank" rel="noreferrer"
+                    style={{background:'transparent',border:'1px solid rgba(79,255,164,0.3)',color:'#4fffa4',padding:'9px 18px',borderRadius:'8px',fontSize:'13px',fontWeight:600,textDecoration:'none',whiteSpace:'nowrap',alignSelf:'center'}}>
+                    Get a Quote →
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
       {/* ── SOCIAL PROOF ── */}
       <Section label="Social Proof" title={<>Trusted by <span style={{color:'#4fffa4'}}>200+ Protocols</span></>}
         sub="We don't just say we're good. Here's the track record.">

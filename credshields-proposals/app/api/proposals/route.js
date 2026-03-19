@@ -1,32 +1,26 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
+const admin = () => createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+)
+
 export async function GET() {
   try {
-    const db = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    )
-
+    const db = admin()
     const { data: proposals, error } = await db
       .from('proposals')
       .select('*, leads(id, email, viewed_at)')
       .order('created_at', { ascending: false })
-
     if (error) throw error
 
     const ids = proposals.map(p => p.id)
     let viewCounts = {}
     if (ids.length > 0) {
-      const { data: views } = await db
-        .from('views')
-        .select('proposal_id')
-        .in('proposal_id', ids)
-      views?.forEach(v => {
-        viewCounts[v.proposal_id] = (viewCounts[v.proposal_id] || 0) + 1
-      })
+      const { data: views } = await db.from('views').select('proposal_id').in('proposal_id', ids)
+      views?.forEach(v => { viewCounts[v.proposal_id] = (viewCounts[v.proposal_id] || 0) + 1 })
     }
-
     return NextResponse.json(proposals.map(p => ({ ...p, views: viewCounts[p.id] || 0 })))
   } catch (err) {
     console.error('GET /api/proposals error:', err)
@@ -36,13 +30,9 @@ export async function GET() {
 
 export async function POST(req) {
   try {
-    const db = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    )
-
+    const db = admin()
     const body = await req.json()
-    const { clientName, company, originalPrice, finalPrice, loc, days, scopeDescription, slug } = body
+    const { clientName, company, proposalType, originalPrice, finalPrice, loc, days, scopeDescription, slug, customTimeline } = body
 
     if (!slug || !clientName || !company) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -54,11 +44,13 @@ export async function POST(req) {
         slug,
         client_name:       clientName,
         company,
+        proposal_type:     proposalType || 'smart_contract',
         original_price:    originalPrice,
         final_price:       finalPrice,
         loc,
         days,
         scope_description: scopeDescription,
+        custom_timeline:   customTimeline || null,
       })
       .select()
       .single()

@@ -6,36 +6,41 @@ const admin = () => createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-// PATCH — edit an existing proposal
 export async function PATCH(req, { params }) {
-  const db = admin()
-  const body = await req.json()
-  const updates = {}
-  if (body.clientName !== undefined)       updates.client_name       = body.clientName
-  if (body.company !== undefined)          updates.company           = body.company
-  if (body.originalPrice !== undefined)    updates.original_price    = body.originalPrice
-  if (body.finalPrice !== undefined)       updates.final_price       = body.finalPrice
-  if (body.loc !== undefined)              updates.loc               = body.loc
-  if (body.days !== undefined)             updates.days              = body.days
-  if (body.scopeDescription !== undefined) updates.scope_description = body.scopeDescription
+  try {
+    const db   = admin()
+    const body = await req.json()
+    const updates = {}
+    if (body.clientName       !== undefined) updates.client_name       = body.clientName
+    if (body.company          !== undefined) updates.company           = body.company
+    if (body.proposalType     !== undefined) updates.proposal_type     = body.proposalType
+    if (body.originalPrice    !== undefined) updates.original_price    = body.originalPrice
+    if (body.finalPrice       !== undefined) updates.final_price       = body.finalPrice
+    if (body.loc              !== undefined) updates.loc               = body.loc
+    if (body.days             !== undefined) updates.days              = body.days
+    if (body.scopeDescription !== undefined) updates.scope_description = body.scopeDescription
+    if (body.customTimeline   !== undefined) updates.custom_timeline   = body.customTimeline
+    updates.updated_at = new Date().toISOString()
 
-  const { data, error } = await db
-    .from('proposals')
-    .update(updates)
-    .eq('id', params.id)
-    .select()
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+    const { data, error } = await db.from('proposals').update(updates).eq('id', params.id).select().single()
+    if (error) throw error
+    return NextResponse.json(data)
+  } catch (err) {
+    console.error('PATCH /api/proposals error:', err)
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
 }
 
-// DELETE — remove proposal and all its leads/views
 export async function DELETE(req, { params }) {
-  const db = admin()
-  await db.from('leads').delete().eq('proposal_id', params.id)
-  await db.from('views').delete().eq('proposal_id', params.id)
-  const { error } = await db.from('proposals').delete().eq('id', params.id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+  try {
+    const db = admin()
+    await db.from('leads').delete().eq('proposal_id', params.id)
+    await db.from('views').delete().eq('proposal_id', params.id)
+    const { error } = await db.from('proposals').delete().eq('id', params.id)
+    if (error) throw error
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('DELETE /api/proposals error:', err)
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
 }

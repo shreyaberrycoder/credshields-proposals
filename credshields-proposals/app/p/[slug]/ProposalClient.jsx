@@ -218,7 +218,7 @@ function ProposalContent({ proposal }) {
               {
                 icon:'🔀',
                 title:'Fuzzing as a Service',
-                desc:'Automated property-based fuzzing of your smart contracts using tools like Echidna and Medusa. Uncovers edge-case vulnerabilities and unexpected state transitions that manual review can miss.',
+                desc:'Automated property-based fuzzing of your smart contracts. Uncovers edge-case vulnerabilities and unexpected state transitions that manual review can miss.',
                 badge:'Add-on · Quote on request',
                 cta:true,
               },
@@ -226,7 +226,7 @@ function ProposalContent({ proposal }) {
                 icon:'🛠️',
                 title:'Development Issues Review',
                 desc:'A thorough review of your development practices, code quality, test coverage, and CI/CD pipeline. We identify gaps in your SDLC that could introduce vulnerabilities post-audit.',
-                badge:'Service · Included on request',
+                badge:'Service · Quote on request',
                 cta:false,
               },
               {

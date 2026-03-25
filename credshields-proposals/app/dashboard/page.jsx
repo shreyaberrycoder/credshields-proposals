@@ -1,11 +1,11 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { TYPE_LABELS, DEFAULT_TIMELINES } from '../../lib/proposalTypes'
+import { TYPE_LABELS, DEFAULT_TIMELINES, VULNERABILITIES } from '../../lib/proposalTypes'
 
 const disc    = (p) => Math.round(((p.original_price - p.final_price) / p.original_price) * 100)
 const fmt     = (n) => Number(n).toLocaleString()
 const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'})
-const fmtTime = (d) => new Date(d).toLocaleString('en-GB', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+const fmtTime = (d) => new Date(d).toLocaleString('en-GB',  {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
 
 const EMPTY_FORM = {
   clientName:'', company:'',
@@ -13,7 +13,7 @@ const EMPTY_FORM = {
   originalPrice:7500, finalPrice:4000,
   loc:1798, days:6,
   scopeDescription:'Smart contract security audit covering the full protocol codebase.',
-  customTimeline: null,
+  customTimeline:null, customVulnerabilities:null,
 }
 
 const TYPE_OPTIONS = [
@@ -21,6 +21,11 @@ const TYPE_OPTIONS = [
   { value:'web_app',        label:'Web Application Audit' },
   { value:'mobile',         label:'Mobile Application Audit' },
   { value:'traditional',    label:'Traditional Security Audit' },
+]
+
+const CUSTOM_VULN_PLACEHOLDER = [
+  { category:'Access Control', checks:['Role-based access validation','Privilege escalation checks'] },
+  { category:'Data Security',  checks:['Sensitive data encryption','Input sanitisation'] },
 ]
 
 export default function Dashboard() {
@@ -36,21 +41,22 @@ export default function Dashboard() {
   const [form,       setForm]       = useState(EMPTY_FORM)
   const [search,     setSearch]     = useState('')
   const [toast,      setToast]      = useState(null)
-  const [tab,        setTab]        = useState('details') // 'details' | 'timeline'
-  const [timelineRows, setTimelineRows] = useState([])
+  const [tab,        setTab]        = useState('details')
+  const [timelineRows,  setTimelineRows]  = useState([])
+  const [customVulnRows,setCustomVulnRows] = useState([])
 
   useEffect(() => { if (sessionStorage.getItem('cs_authed')==='true') setAuthed(true) }, [])
 
   const login = async () => {
     setPwError('')
-    const res = await fetch('/api/auth', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password }) })
+    const res = await fetch('/api/auth', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password}) })
     if (res.ok) { sessionStorage.setItem('cs_authed','true'); setAuthed(true) }
     else setPwError('Incorrect password.')
   }
   const logout = () => { sessionStorage.removeItem('cs_authed'); setAuthed(false) }
 
   const fetchProposals = useCallback(async () => {
-    const res = await fetch('/api/proposals')
+    const res  = await fetch('/api/proposals')
     const data = await res.json()
     setProposals(Array.isArray(data) ? data : [])
   }, [])
@@ -58,45 +64,44 @@ export default function Dashboard() {
   useEffect(() => { if (authed) fetchProposals() }, [authed, fetchProposals])
 
   const showToast = (msg, type='success') => {
-    setToast({ msg, type })
-    setTimeout(() => setToast(null), 3200)
+    setToast({msg,type}); setTimeout(()=>setToast(null), 3200)
   }
 
-  // When proposal type changes in form, reset timeline rows to default
+  const needsCustomVuln = (type) => !VULNERABILITIES[type]
+
   const handleTypeChange = (newType) => {
-    setForm(f => ({ ...f, proposalType: newType }))
+    setForm(f => ({...f, proposalType:newType}))
     setTimelineRows(DEFAULT_TIMELINES[newType] || DEFAULT_TIMELINES.smart_contract)
+    if (!VULNERABILITIES[newType] && customVulnRows.length === 0) {
+      setCustomVulnRows(CUSTOM_VULN_PLACEHOLDER)
+    }
   }
 
   const openForm = () => {
-    setEditTarget(null)
-    setForm(EMPTY_FORM)
+    setEditTarget(null); setForm(EMPTY_FORM)
     setTimelineRows(DEFAULT_TIMELINES.smart_contract)
-    setTab('details')
-    setShowForm(true)
+    setCustomVulnRows([]); setTab('details'); setShowForm(true)
   }
 
   const openEdit = (proposal) => {
     setEditTarget(proposal)
     const type = proposal.proposal_type || 'smart_contract'
     let tl = DEFAULT_TIMELINES[type]
-    if (proposal.custom_timeline) {
-      try { tl = JSON.parse(proposal.custom_timeline) } catch(e) {}
-    }
+    if (proposal.custom_timeline) { try { tl = JSON.parse(proposal.custom_timeline) } catch(e){} }
     setTimelineRows(tl)
+    let cv = []
+    if (proposal.custom_vulnerabilities) { try { cv = JSON.parse(proposal.custom_vulnerabilities) } catch(e){} }
+    setCustomVulnRows(cv)
     setForm({
-      clientName:       proposal.client_name,
-      company:          proposal.company,
-      proposalType:     type,
-      originalPrice:    proposal.original_price,
-      finalPrice:       proposal.final_price,
-      loc:              proposal.loc,
-      days:             proposal.days,
-      scopeDescription: proposal.scope_description || '',
-      customTimeline:   proposal.custom_timeline || null,
+      clientName:proposal.client_name, company:proposal.company,
+      proposalType:type,
+      originalPrice:proposal.original_price, finalPrice:proposal.final_price,
+      loc:proposal.loc, days:proposal.days,
+      scopeDescription:proposal.scope_description||'',
+      customTimeline:proposal.custom_timeline||null,
+      customVulnerabilities:proposal.custom_vulnerabilities||null,
     })
-    setTab('details')
-    setShowForm(true)
+    setTab('details'); setShowForm(true)
   }
 
   const closeForm = () => { setShowForm(false); setEditTarget(null); setForm(EMPTY_FORM); setTab('details') }
@@ -104,69 +109,67 @@ export default function Dashboard() {
   const saveProposal = async () => {
     if (!form.clientName || !form.company) return showToast('Client name and company required.','error')
     setLoading(true)
-
-    const customTimeline = JSON.stringify(timelineRows)
     const payload = {
-      clientName:       form.clientName,
-      company:          form.company,
-      proposalType:     form.proposalType,
-      originalPrice:    form.originalPrice,
-      finalPrice:       form.finalPrice,
-      loc:              form.loc,
-      days:             form.days,
-      scopeDescription: form.scopeDescription,
-      customTimeline,
+      clientName:form.clientName, company:form.company,
+      proposalType:form.proposalType,
+      originalPrice:form.originalPrice, finalPrice:form.finalPrice,
+      loc:form.loc, days:form.days,
+      scopeDescription:form.scopeDescription,
+      customTimeline:JSON.stringify(timelineRows),
+      customVulnerabilities: needsCustomVuln(form.proposalType) && customVulnRows.length > 0
+        ? JSON.stringify(customVulnRows) : null,
     }
-
     let res
     if (editTarget) {
-      res = await fetch(`/api/proposals/${editTarget.id}`, {
-        method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload),
-      })
+      res = await fetch(`/api/proposals/${editTarget.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
     } else {
       const slug = form.company.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '-' + Date.now().toString(36)
-      res = await fetch('/api/proposals', {
-        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...payload, slug }),
-      })
+      res = await fetch('/api/proposals', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...payload,slug}) })
     }
-
-    if (res.ok) { closeForm(); fetchProposals(); showToast(editTarget ? 'Proposal updated.' : 'Proposal created! Copy the link.') }
-    else showToast('Error saving proposal. Check Supabase setup.','error')
+    if (res.ok) { closeForm(); fetchProposals(); showToast(editTarget?'Proposal updated.':'Proposal created! Copy the link.') }
+    else showToast('Error saving proposal.','error')
     setLoading(false)
   }
 
   const deleteProposal = async (proposal) => {
     if (!confirm(`Delete proposal for ${proposal.company}?\n\n${proposal.leads?.length||0} email(s) will be deleted. Cannot be undone.`)) return
-    await fetch(`/api/proposals/${proposal.id}`, { method:'DELETE' })
-    if (expanded === proposal.id) setExpanded(null)
+    await fetch(`/api/proposals/${proposal.id}`, {method:'DELETE'})
+    if (expanded===proposal.id) setExpanded(null)
     fetchProposals(); showToast('Proposal deleted.')
   }
 
   const copyLink = (slug) => {
     navigator.clipboard.writeText(`${window.location.origin}/p/${slug}`)
     setCopied(slug); showToast('Link copied!')
-    setTimeout(() => setCopied(null), 2500)
+    setTimeout(()=>setCopied(null),2500)
   }
 
   const exportAll = () => {
     const rows = [['Company','Client','Email','Date']]
-    proposals.forEach(p => p.leads?.forEach(l => rows.push([p.company, p.client_name, l.email, l.viewed_at])))
-    const csv = rows.map(r => r.map(c=>`"${c}"`).join(',')).join('\n')
-    const a = document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='all-leads.csv'; a.click()
+    proposals.forEach(p=>p.leads?.forEach(l=>rows.push([p.company,p.client_name,l.email,l.viewed_at])))
+    const csv = rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n')
+    const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='all-leads.csv';a.click()
   }
 
-  // Timeline row helpers
-  const updateTlRow = (i, field, val) => setTimelineRows(rows => rows.map((r,idx) => idx===i ? {...r,[field]:val} : r))
-  const addTlRow    = () => setTimelineRows(rows => [...rows, {day:`Day ${rows.length+1}`, title:'', desc:''}])
-  const removeTlRow = (i) => setTimelineRows(rows => rows.filter((_,idx) => idx!==i))
+  // Timeline helpers
+  const updateTlRow  = (i,f,v) => setTimelineRows(rows=>rows.map((r,idx)=>idx===i?{...r,[f]:v}:r))
+  const addTlRow     = () => setTimelineRows(rows=>[...rows,{day:`Day ${rows.length+1}`,title:'',desc:''}])
+  const removeTlRow  = (i) => setTimelineRows(rows=>rows.filter((_,idx)=>idx!==i))
 
-  const filtered   = proposals.filter(p => !search || p.client_name.toLowerCase().includes(search.toLowerCase()) || p.company.toLowerCase().includes(search.toLowerCase()))
-  const totalViews = proposals.reduce((a,p) => a+(p.views||0), 0)
-  const totalLeads = proposals.reduce((a,p) => a+(p.leads?.length||0), 0)
-  const totalValue = proposals.reduce((a,p) => a+p.final_price, 0)
-  const convRate   = proposals.length ? Math.round((proposals.filter(p=>p.leads?.length>0).length/proposals.length)*100) : 0
+  // Custom vuln helpers
+  const updateVulnRow    = (i,f,v) => setCustomVulnRows(rows=>rows.map((r,idx)=>idx===i?{...r,[f]:v}:r))
+  const updateVulnCheck  = (i,j,v) => setCustomVulnRows(rows=>rows.map((r,idx)=>idx===i?{...r,checks:r.checks.map((c,ci)=>ci===j?v:c)}:r))
+  const addVulnCheck     = (i) => setCustomVulnRows(rows=>rows.map((r,idx)=>idx===i?{...r,checks:[...r.checks,'']}:r))
+  const removeVulnCheck  = (i,j) => setCustomVulnRows(rows=>rows.map((r,idx)=>idx===i?{...r,checks:r.checks.filter((_,ci)=>ci!==j)}:r))
+  const addVulnRow       = () => setCustomVulnRows(rows=>[...rows,{category:'',checks:['']}])
+  const removeVulnRow    = (i) => setCustomVulnRows(rows=>rows.filter((_,idx)=>idx!==i))
 
-  // ── LOGIN ─────────────────────────────────────────────────────────────────
+  const filtered   = proposals.filter(p=>!search||p.client_name.toLowerCase().includes(search.toLowerCase())||p.company.toLowerCase().includes(search.toLowerCase()))
+  const totalViews = proposals.reduce((a,p)=>a+(p.views||0),0)
+  const totalLeads = proposals.reduce((a,p)=>a+(p.leads?.length||0),0)
+  const totalValue = proposals.reduce((a,p)=>a+p.final_price,0)
+  const convRate   = proposals.length?Math.round((proposals.filter(p=>p.leads?.length>0).length/proposals.length)*100):0
+
   if (!authed) return (
     <div style={s.loginPage}>
       <div style={s.loginBox}>
@@ -175,19 +178,23 @@ export default function Dashboard() {
         <hr style={{width:'100%',border:'none',borderTop:'1px solid rgba(255,255,255,0.07)',margin:'4px 0'}}/>
         <input style={s.input} type="password" placeholder="Team password" value={password}
           onChange={e=>{setPassword(e.target.value);setPwError('')}} onKeyDown={e=>e.key==='Enter'&&login()} autoFocus/>
-        {pwError && <p style={{color:'#ff4f6a',fontSize:'13px',alignSelf:'flex-start'}}>{pwError}</p>}
+        {pwError&&<p style={{color:'#ff4f6a',fontSize:'13px',alignSelf:'flex-start'}}>{pwError}</p>}
         <button style={{...s.btnGreen,width:'100%'}} onClick={login}>Enter Dashboard →</button>
         <p style={{fontSize:'11px',color:'#4a5568',marginTop:'4px'}}>Set DASHBOARD_PASSWORD in Vercel env vars</p>
       </div>
     </div>
   )
 
-  // ── DASHBOARD ─────────────────────────────────────────────────────────────
+  const TABS = [
+    {id:'details',  label:'Proposal Details'},
+    {id:'timeline', label:'Audit Timeline'},
+    ...(needsCustomVuln(form.proposalType) ? [{id:'vulns',label:'Vulnerability Coverage'}] : []),
+  ]
+
   return (
     <div style={s.page}>
-      {toast && <div style={{...s.toast,background:toast.type==='error'?'rgba(255,79,106,0.95)':'rgba(79,255,164,0.95)',color:toast.type==='error'?'#fff':'#080b12'}}>{toast.type==='error'?'✕ ':'✓ '}{toast.msg}</div>}
+      {toast&&<div style={{...s.toast,background:toast.type==='error'?'rgba(255,79,106,0.95)':'rgba(79,255,164,0.95)',color:toast.type==='error'?'#fff':'#080b12'}}>{toast.type==='error'?'✕ ':'✓ '}{toast.msg}</div>}
 
-      {/* Header */}
       <header style={s.header}>
         <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
           <div style={s.brand}>CRED<span style={{color:'#4fffa4'}}>SHIELDS</span></div>
@@ -195,13 +202,12 @@ export default function Dashboard() {
         </div>
         <div style={{display:'flex',gap:'10px',alignItems:'center',flexWrap:'wrap'}}>
           <button style={s.btnGhost} onClick={fetchProposals}>↻ Refresh</button>
-          {totalLeads>0 && <button style={s.btnGhost} onClick={exportAll}>↓ Export All Leads</button>}
+          {totalLeads>0&&<button style={s.btnGhost} onClick={exportAll}>↓ Export All Leads</button>}
           <button style={s.btnGhost} onClick={logout}>Log out</button>
           <button style={s.btnGreen} onClick={openForm}>+ New Proposal</button>
         </div>
       </header>
 
-      {/* Stats */}
       <div style={s.statsGrid}>
         {[
           {num:proposals.length,      label:'Total Proposals', sub:'all time'},
@@ -218,7 +224,6 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Table */}
       <div style={s.tableSection}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'14px',flexWrap:'wrap',gap:'12px'}}>
           <h2 style={{fontSize:'16px',fontWeight:700}}>All Proposals <span style={{color:'#7a8a9e',fontWeight:400,fontSize:'14px'}}>({filtered.length})</span></h2>
@@ -230,9 +235,9 @@ export default function Dashboard() {
               <tr>{['Client','Company','Type','Final Price','Discount','Views','Leads','Created','Actions'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr>
             </thead>
             <tbody>
-              {filtered.length===0 && (
+              {filtered.length===0&&(
                 <tr><td colSpan={9} style={{...s.td,textAlign:'center',padding:'72px 20px',color:'#7a8a9e'}}>
-                  {search ? `No proposals matching "${search}"` : <span>No proposals yet. Click <strong style={{color:'#4fffa4'}}>+ New Proposal</strong>.</span>}
+                  {search?`No proposals matching "${search}"`:<span>No proposals yet. Click <strong style={{color:'#4fffa4'}}>+ New Proposal</strong>.</span>}
                 </td></tr>
               )}
               {filtered.map(proposal=>(
@@ -262,26 +267,24 @@ export default function Dashboard() {
                       </div>
                     </td>
                   </tr>
-                  {expanded===proposal.id && (
+                  {expanded===proposal.id&&(
                     <tr key={`${proposal.id}-exp`}>
                       <td colSpan={9} style={{...s.td,padding:0,background:'rgba(79,255,164,0.02)'}}>
                         <div style={{padding:'20px 24px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
                           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'14px'}}>
                             <span style={{fontSize:'10px',letterSpacing:'0.12em',textTransform:'uppercase',color:'#7a8a9e',fontFamily:'monospace'}}>Emails — {proposal.company}</span>
-                            {proposal.leads?.length>0 && (
+                            {proposal.leads?.length>0&&(
                               <button style={{...s.btnGhost,fontSize:'12px',padding:'5px 12px'}} onClick={()=>{
                                 const csv='Email,Date\n'+proposal.leads.map(l=>`"${l.email}","${l.viewed_at}"`).join('\n')
                                 const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download=`${proposal.company.replace(/\s+/g,'-')}-leads.csv`;a.click()
                               }}>↓ Export CSV</button>
                             )}
                           </div>
-                          {!proposal.leads?.length && <p style={{color:'#7a8a9e',fontSize:'14px'}}>No emails yet. Share <code style={{color:'#4fffa4',fontSize:'12px'}}>/p/{proposal.slug}</code></p>}
+                          {!proposal.leads?.length&&<p style={{color:'#7a8a9e',fontSize:'14px'}}>No emails yet. Share <code style={{color:'#4fffa4',fontSize:'12px'}}>/p/{proposal.slug}</code></p>}
                           {proposal.leads?.map((lead,i)=>(
                             <div key={lead.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderTop:i>0?'1px solid rgba(255,255,255,0.04)':'none'}}>
                               <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-                                <div style={{width:'28px',height:'28px',borderRadius:'50%',background:'rgba(79,255,164,0.1)',border:'1px solid rgba(79,255,164,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'12px',fontWeight:600,color:'#4fffa4'}}>
-                                  {lead.email[0].toUpperCase()}
-                                </div>
+                                <div style={{width:'28px',height:'28px',borderRadius:'50%',background:'rgba(79,255,164,0.1)',border:'1px solid rgba(79,255,164,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'12px',fontWeight:600,color:'#4fffa4'}}>{lead.email[0].toUpperCase()}</div>
                                 <span style={{fontSize:'14px'}}>{lead.email}</span>
                               </div>
                               <span style={{fontSize:'12px',color:'#7a8a9e'}}>{fmtTime(lead.viewed_at)}</span>
@@ -299,41 +302,49 @@ export default function Dashboard() {
       </div>
 
       {/* ── MODAL ── */}
-      {showForm && (
+      {showForm&&(
         <div style={s.overlay} onClick={e=>e.target===e.currentTarget&&closeForm()}>
           <div style={s.modal}>
-            {/* Modal Header */}
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'24px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'20px'}}>
               <h2 style={{fontSize:'20px',fontWeight:700}}>{editTarget?`Edit — ${editTarget.company}`:'Create New Proposal'}</h2>
               <button style={{background:'transparent',border:'none',color:'#7a8a9e',fontSize:'20px',cursor:'pointer'}} onClick={closeForm}>✕</button>
             </div>
 
             {/* Tabs */}
-            <div style={{display:'flex',gap:'0',marginBottom:'24px',borderBottom:'1px solid rgba(255,255,255,0.07)'}}>
-              {[{id:'details',label:'Proposal Details'},{id:'timeline',label:'Audit Timeline'}].map(t=>(
-                <button key={t.id} style={{background:'transparent',border:'none',borderBottom:tab===t.id?'2px solid #4fffa4':'2px solid transparent',color:tab===t.id?'#4fffa4':'#7a8a9e',padding:'10px 20px',fontSize:'13px',fontWeight:tab===t.id?600:400,cursor:'pointer',marginBottom:'-1px'}} onClick={()=>setTab(t.id)}>
+            <div style={{display:'flex',gap:'0',marginBottom:'24px',borderBottom:'1px solid rgba(255,255,255,0.07)',overflowX:'auto'}}>
+              {TABS.map(t=>(
+                <button key={t.id} style={{background:'transparent',border:'none',borderBottom:tab===t.id?'2px solid #4fffa4':'2px solid transparent',color:tab===t.id?'#4fffa4':'#7a8a9e',padding:'10px 18px',fontSize:'13px',fontWeight:tab===t.id?600:400,cursor:'pointer',marginBottom:'-1px',whiteSpace:'nowrap'}} onClick={()=>setTab(t.id)}>
                   {t.label}
                 </button>
               ))}
             </div>
 
-            {/* Details Tab */}
-            {tab==='details' && (
+            {/* ── DETAILS TAB ── */}
+            {tab==='details'&&(
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'20px'}}>
-                {/* Proposal Type - full width */}
                 <div style={{gridColumn:'1/-1'}}>
                   <label style={s.fieldLabel}>Proposal Type</label>
                   <select style={{...s.input,cursor:'pointer'}} value={form.proposalType} onChange={e=>handleTypeChange(e.target.value)}>
                     {TYPE_OPTIONS.map(opt=><option key={opt.value} value={opt.value}>{opt.label}</option>)}
                   </select>
+                  {!needsCustomVuln(form.proposalType)&&(
+                    <p style={{fontSize:'11px',color:'#4fffa4',marginTop:'6px'}}>
+                      ✓ Vulnerability coverage auto-populated from {form.proposalType==='smart_contract'?'Smart Contract':'Web App'} data
+                    </p>
+                  )}
+                  {needsCustomVuln(form.proposalType)&&(
+                    <p style={{fontSize:'11px',color:'#f5c542',marginTop:'6px'}}>
+                      ⚠ Add custom vulnerability coverage in the "Vulnerability Coverage" tab
+                    </p>
+                  )}
                 </div>
                 {[
-                  {label:'Client Name *',       key:'clientName',     ph:'John Smith',      type:'text'},
-                  {label:'Protocol / Company *', key:'company',        ph:'Vouch Staking',   type:'text'},
-                  {label:'Original Price USD',   key:'originalPrice',  ph:'7500',            type:'number'},
-                  {label:'Final Price USD',      key:'finalPrice',     ph:'4000',            type:'number'},
-                  {label:'Lines of Code / Scope',key:'loc',            ph:'1798',            type:'number'},
-                  {label:'Audit Days',           key:'days',           ph:'6',               type:'number'},
+                  {label:'Client Name *',        key:'clientName',    ph:'John Smith',     type:'text'},
+                  {label:'Protocol / Company *', key:'company',       ph:'Vouch Staking',  type:'text'},
+                  {label:'Original Price USD',   key:'originalPrice', ph:'7500',           type:'number'},
+                  {label:'Final Price USD',      key:'finalPrice',    ph:'4000',           type:'number'},
+                  {label:'Lines of Code / Scope',key:'loc',           ph:'1798',           type:'number'},
+                  {label:'Audit Days',           key:'days',          ph:'6',              type:'number'},
                 ].map(f=>(
                   <div key={f.key}>
                     <label style={s.fieldLabel}>{f.label}</label>
@@ -348,12 +359,10 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Timeline Tab */}
-            {tab==='timeline' && (
+            {/* ── TIMELINE TAB ── */}
+            {tab==='timeline'&&(
               <div style={{marginBottom:'20px'}}>
-                <p style={{fontSize:'13px',color:'#7a8a9e',marginBottom:'16px'}}>
-                  Customize the timeline steps shown in the proposal. Add or remove steps as needed.
-                </p>
+                <p style={{fontSize:'13px',color:'#7a8a9e',marginBottom:'16px'}}>Customize the timeline steps shown in the proposal.</p>
                 {timelineRows.map((row,i)=>(
                   <div key={i} style={{background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'8px',padding:'14px',marginBottom:'10px'}}>
                     <div style={{display:'grid',gridTemplateColumns:'100px 1fr auto',gap:'10px',marginBottom:'8px',alignItems:'center'}}>
@@ -364,14 +373,41 @@ export default function Dashboard() {
                     <textarea style={{...s.input,height:'60px',resize:'vertical',fontSize:'12px'}} value={row.desc} onChange={e=>updateTlRow(i,'desc',e.target.value)} placeholder="Step description"/>
                   </div>
                 ))}
-                <button style={{...s.btnGhost,width:'100%',fontSize:'13px',marginTop:'4px'}} onClick={addTlRow}>
-                  + Add Timeline Step
-                </button>
+                <button style={{...s.btnGhost,width:'100%',fontSize:'13px',marginTop:'4px'}} onClick={addTlRow}>+ Add Step</button>
               </div>
             )}
 
-            {/* Pricing preview */}
-            {tab==='details' && form.originalPrice>0 && form.finalPrice>0 && (
+            {/* ── VULNERABILITY COVERAGE TAB (mobile/traditional only) ── */}
+            {tab==='vulns'&&(
+              <div style={{marginBottom:'20px'}}>
+                <div style={{background:'rgba(245,197,66,0.06)',border:'1px solid rgba(245,197,66,0.2)',borderRadius:'8px',padding:'12px 16px',marginBottom:'16px',fontSize:'13px',color:'#f5c542'}}>
+                  Smart Contract and Web App proposals use auto-populated vulnerability tables. For Mobile and Traditional audits, add your custom categories and checkpoints below.
+                </div>
+                {customVulnRows.map((row,i)=>(
+                  <div key={i} style={{background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'8px',padding:'16px',marginBottom:'12px'}}>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:'10px',marginBottom:'12px',alignItems:'center'}}>
+                      <div>
+                        <label style={s.fieldLabel}>Category Name</label>
+                        <input style={{...s.input,padding:'8px 12px',fontSize:'13px',fontWeight:600}} value={row.category} onChange={e=>updateVulnRow(i,'category',e.target.value)} placeholder="e.g. Insecure Data Storage"/>
+                      </div>
+                      <button style={{...s.btnDel,marginTop:'22px'}} onClick={()=>removeVulnRow(i)}>✕ Remove</button>
+                    </div>
+                    <label style={s.fieldLabel}>Checkpoints</label>
+                    {(row.checks||[]).map((check,j)=>(
+                      <div key={j} style={{display:'grid',gridTemplateColumns:'1fr auto',gap:'8px',marginBottom:'8px',alignItems:'center'}}>
+                        <input style={{...s.input,padding:'7px 12px',fontSize:'13px'}} value={check} onChange={e=>updateVulnCheck(i,j,e.target.value)} placeholder="e.g. Sensitive data stored in plaintext"/>
+                        <button style={{...s.btnDel,padding:'7px 10px',fontSize:'12px'}} onClick={()=>removeVulnCheck(i,j)}>✕</button>
+                      </div>
+                    ))}
+                    <button style={{...s.btnGhost,fontSize:'12px',padding:'6px 14px',marginTop:'4px'}} onClick={()=>addVulnCheck(i)}>+ Add Checkpoint</button>
+                  </div>
+                ))}
+                <button style={{...s.btnGhost,width:'100%',fontSize:'13px',marginTop:'4px'}} onClick={addVulnRow}>+ Add Vulnerability Category</button>
+              </div>
+            )}
+
+            {/* Preview bar */}
+            {tab==='details'&&form.originalPrice>0&&form.finalPrice>0&&(
               <div style={{background:'rgba(79,255,164,0.04)',border:'1px solid rgba(79,255,164,0.1)',borderRadius:'8px',padding:'12px 16px',marginBottom:'20px',display:'flex',gap:'20px',flexWrap:'wrap',fontSize:'13px',color:'#7a8a9e'}}>
                 <span>Discount: <strong style={{color:'#4fffa4'}}>{Math.round(((form.originalPrice-form.finalPrice)/form.originalPrice)*100)}% off</strong></span>
                 <span>Savings: <strong style={{color:'#4fffa4'}}>${fmt(form.originalPrice-form.finalPrice)}</strong></span>
@@ -421,6 +457,6 @@ const s = {
   input:        {background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'8px',padding:'10px 14px',color:'#e8edf5',fontSize:'14px',width:'100%',outline:'none'},
   fieldLabel:   {fontSize:'10px',color:'#7a8a9e',letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:'7px',display:'block',fontFamily:'monospace'},
   overlay:      {position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:'20px'},
-  modal:        {background:'#0d1120',border:'1px solid rgba(79,255,164,0.15)',borderRadius:'14px',padding:'36px',width:'100%',maxWidth:'660px',maxHeight:'92vh',overflowY:'auto'},
+  modal:        {background:'#0d1120',border:'1px solid rgba(79,255,164,0.15)',borderRadius:'14px',padding:'36px',width:'100%',maxWidth:'680px',maxHeight:'92vh',overflowY:'auto'},
   toast:        {position:'fixed',bottom:'28px',right:'28px',padding:'12px 20px',borderRadius:'8px',fontSize:'14px',fontWeight:600,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,0.5)'},
 }

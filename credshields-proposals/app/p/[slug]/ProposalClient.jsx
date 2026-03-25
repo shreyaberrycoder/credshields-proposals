@@ -423,7 +423,6 @@ function ProposalContent({ proposal }) {
       {/* ── PARTNERS ── */}
       <Section label="Partners & Integrations" title={<>Trusted Across the <span style={{color:'#4fffa4'}}>Ecosystem</span></>}
         sub="Powered by SolidityScan — 2.5M+ scans completed, integrated across 80+ blockchain platforms.">
-        <style>{`.logo-wrap svg { width:100% !important; height:auto !important; max-height:38px; }`}</style>
         <div style={{
           display:'grid',
           gridTemplateColumns:'repeat(4,1fr)',
@@ -441,16 +440,17 @@ function ProposalContent({ proposal }) {
                 alignItems:'center',
                 justifyContent:'center',
                 minHeight:'72px',
+                overflow:'hidden',
               }}
             >
-             <div
-                className="logo-wrap"
+              <div
                 style={{
+                  width:'100%',
+                  maxWidth:'140px',
                   display:'flex',
                   alignItems:'center',
                   justifyContent:'center',
-                  width:'100%',
-                  padding:'0 8px',
+                  lineHeight:0,
                 }}
                 dangerouslySetInnerHTML={{ __html: partner.svg }}
               />

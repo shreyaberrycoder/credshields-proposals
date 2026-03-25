@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react'
 import CredShieldsLogo from '../../../components/Logo'
 import { PROPOSAL_TYPES, DEFAULT_TIMELINES, VULNERABILITIES } from '../../../lib/proposalTypes'
-import { PARTNER_LOGOS } from '../../../components/PartnerLogos'
 
 export default function ProposalClient({ proposal }) {
   const [unlocked,   setUnlocked]   = useState(false)
@@ -420,42 +419,26 @@ function ProposalContent({ proposal }) {
       </Section>
 
       {/* ── PARTNERS ── */}
-      {/* ── PARTNERS ── */}
       <Section label="Partners & Integrations" title={<>Trusted Across the <span style={{color:'#4fffa4'}}>Ecosystem</span></>}
         sub="Powered by SolidityScan — 2.5M+ scans completed, integrated across 80+ blockchain platforms.">
         <div style={{
-          display:'grid',
-          gridTemplateColumns:'repeat(4,1fr)',
-          gap:'12px',
+          background:'#0d1120',
+          border:'1px solid rgba(255,255,255,0.07)',
+          borderRadius:'12px',
+          padding:'32px 24px',
+          display:'flex',
+          alignItems:'center',
+          justifyContent:'center',
         }}>
-          {PARTNER_LOGOS.map(partner=>(
-            <div
-              key={partner.name}
-              style={{
-                background:'#0d1120',
-                border:'1px solid rgba(255,255,255,0.07)',
-                borderRadius:'10px',
-                padding:'20px 16px',
-                display:'flex',
-                alignItems:'center',
-                justifyContent:'center',
-                minHeight:'72px',
-                overflow:'hidden',
-              }}
-            >
-              <div
-                style={{
-                  width:'100%',
-                  maxWidth:'140px',
-                  display:'flex',
-                  alignItems:'center',
-                  justifyContent:'center',
-                  lineHeight:0,
-                }}
-                dangerouslySetInnerHTML={{ __html: partner.svg }}
-              />
-            </div>
-          ))}
+          <img
+            src="/Group 487041.svg"
+            alt="CredShields Partners"
+            style={{
+              width:'100%',
+              height:'auto',
+              display:'block',
+            }}
+          />
         </div>
       </Section>
 

@@ -1,13 +1,13 @@
 'use client'
 import { useState, useEffect } from 'react'
 import CredShieldsLogo from '../../../components/Logo'
-import { PROPOSAL_TYPES, DEFAULT_TIMELINES } from '../../../lib/proposalTypes'
+import { PROPOSAL_TYPES, DEFAULT_TIMELINES, VULNERABILITIES } from '../../../lib/proposalTypes'
 
 export default function ProposalClient({ proposal }) {
-  const [unlocked,    setUnlocked]    = useState(false)
-  const [email,       setEmail]       = useState('')
-  const [submitting,  setSubmitting]  = useState(false)
-  const [error,       setError]       = useState('')
+  const [unlocked,   setUnlocked]   = useState(false)
+  const [email,      setEmail]      = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error,      setError]      = useState('')
   const storageKey = `cs_unlocked_${proposal.id}`
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export default function ProposalClient({ proposal }) {
       {!unlocked && (
         <div style={g.overlay}>
           <div style={g.box}>
-            <CredShieldsLogo height={52} style={{ marginBottom:'8px' }} />
+            <CredShieldsLogo height={40} style={{ marginBottom:'8px' }} />
             <div style={g.icon}>🔒</div>
             <h2 style={g.title}>Your Proposal is Ready</h2>
             <p style={g.sub}>
@@ -61,21 +61,19 @@ export default function ProposalClient({ proposal }) {
 }
 
 function ProposalContent({ proposal }) {
-  const fmt     = (n)  => Number(n).toLocaleString()
-  const type    = proposal.proposal_type || 'smart_contract'
-  const config  = PROPOSAL_TYPES[type] || PROPOSAL_TYPES.smart_contract
-  const disc    = Math.round(((proposal.original_price - proposal.final_price) / proposal.original_price) * 100)
-  const month   = new Date(proposal.created_at).toLocaleString('default', { month:'long' })
-  const year    = new Date(proposal.created_at).getFullYear()
+  const fmt    = (n) => Number(n).toLocaleString()
+  const type   = proposal.proposal_type || 'smart_contract'
+  const config = PROPOSAL_TYPES[type] || PROPOSAL_TYPES.smart_contract
+  const disc   = Math.round(((proposal.original_price - proposal.final_price) / proposal.original_price) * 100)
+  const month  = new Date(proposal.created_at).toLocaleString('default', { month:'long' })
+  const year   = new Date(proposal.created_at).getFullYear()
 
-  // Parse custom timeline if saved, otherwise use defaults
   let timeline = DEFAULT_TIMELINES[type] || DEFAULT_TIMELINES.smart_contract
   if (proposal.custom_timeline) {
     try { timeline = JSON.parse(proposal.custom_timeline) } catch(e) {}
   }
 
-  // Dynamic competitor prices
-  const price = proposal.final_price
+  const price    = proposal.final_price
   const compRows = config.competitors.map(c => ({
     name:    c.name,
     price:   `$${fmt(Math.round(price * c.mult[0]))} - $${fmt(Math.round(price * c.mult[1]))}`,
@@ -86,6 +84,14 @@ function ProposalContent({ proposal }) {
     support: c.support,
   }))
 
+  // Vulnerability coverage — auto for SC/WebApp, custom for others
+  const vulnData = VULNERABILITIES[type] || null
+  let customVulnRows = []
+  if (!vulnData && proposal.custom_vulnerabilities) {
+    try { customVulnRows = JSON.parse(proposal.custom_vulnerabilities) } catch(e) {}
+  }
+  const showVulnSection = vulnData || customVulnRows.length > 0
+
   return (
     <div style={p.page}>
 
@@ -93,9 +99,7 @@ function ProposalContent({ proposal }) {
       <div style={p.cover}>
         <div style={p.coverBg} /><div style={p.coverGrid} />
         <div style={p.wrap}>
-          <div style={p.logoLine}>
-            <CredShieldsLogo height={52} />
-          </div>
+          <div style={p.logoLine}><CredShieldsLogo height={52} /></div>
           <div style={p.eyebrow}>— {config.eyebrow}</div>
           <h1 style={p.coverTitle}>
             {type === 'smart_contract' && <>Security<br/>Audit<br/><span style={{color:'#4fffa4'}}>Proposal</span></>}
@@ -195,9 +199,9 @@ function ProposalContent({ proposal }) {
         sub="Three compounding credibility assets not just a PDF.">
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'16px'}}>
           {[
-            {icon:'📋',title:'Audit Report',    desc:'Full findings with severity ratings, exploit scenarios, and fix guidance. Built for devs and investors alike.',tag:'Public-ready'},
-            {icon:'🛡️',title:'Security Badge',  desc:'Display it on your site, pitch deck, and docs. Instant trust signal to users, VCs, and exchange listing teams.',tag:'Display anywhere'},
-            {icon:'⛓️',title:'On-Chain Seal',   desc:'Timestamped certificate, optionally hash-anchored on-chain. Covers exchange listings, grants, and VC due diligence.',tag:'Hash-anchored'},
+            {icon:'📋',title:'Audit Report',   desc:'Full findings with severity ratings, exploit scenarios, and fix guidance. Built for devs and investors alike.',tag:'Public-ready'},
+            {icon:'🛡️',title:'Security Badge', desc:'Display it on your site, pitch deck, and docs. Instant trust signal to users, VCs, and exchange listing teams.',tag:'Display anywhere'},
+            {icon:'⛓️',title:'On-Chain Seal',  desc:'Timestamped certificate, optionally hash-anchored on-chain. Covers exchange listings, grants, and VC due diligence.',tag:'Hash-anchored'},
           ].map(d=>(
             <div key={d.title} style={p.delCard}>
               <span style={{fontSize:'28px',marginBottom:'14px',display:'block'}}>{d.icon}</span>
@@ -209,40 +213,22 @@ function ProposalContent({ proposal }) {
         </div>
       </Section>
 
-      {/* ── ADD-ON SERVICES ── */}
+      {/* ── ADD-ON SERVICES (Smart Contract only) ── */}
       {type === 'smart_contract' && (
         <Section label="Add-On Services" title={<>Enhance Your <span style={{color:'#4fffa4'}}>Audit Coverage</span></>}
           sub="Optional services to strengthen your security posture beyond the core audit.">
           <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
             {[
-              {
-                icon:'🔀',
-                title:'Fuzzing as a Service',
-                desc:'Automated property-based fuzzing of your smart contracts. Uncovers edge-case vulnerabilities and unexpected state transitions that manual review can miss.',
-                badge:'Add-on · Quote on request',
-                cta:true,
-              },
-              {
-                icon:'🛠️',
-                title:'Development Issues Review',
-                desc:'A thorough review of your development practices, code quality, test coverage, and CI/CD pipeline. We identify gaps in your SDLC that could introduce vulnerabilities post-audit.',
-                badge:'Service · Quote on request',
-                cta:false,
-              },
-              {
-                icon:'📜',
-                title:'Deployment Script Testing',
-                desc:'Review and testing of your deployment scripts, migration logic, and initialisation flows. Ensures your contracts deploy correctly and securely in production with no misconfigured state.',
-                badge:'Add-on · Quote on request',
-                cta:true,
-              },
+              { icon:'🔀', title:'Fuzzing as a Service',       desc:'Automated property-based fuzzing using Echidna and Medusa. Uncovers edge-case vulnerabilities and unexpected state transitions that manual review can miss.', badge:'Add-on · Quote on request', cta:true },
+              { icon:'🛠️', title:'Development Issues Review',  desc:'A thorough review of your development practices, code quality, test coverage, and CI/CD pipeline. We identify gaps in your SDLC that could introduce vulnerabilities post-audit.', badge:'Service · Included on request', cta:false },
+              { icon:'📜', title:'Deployment Script Testing',  desc:'Review and testing of your deployment scripts, migration logic, and initialisation flows. Ensures your contracts deploy correctly and securely in production with no misconfigured state.', badge:'Add-on · Quote on request', cta:true },
             ].map(item=>(
               <div key={item.title} style={{background:'#0d1120',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'10px',padding:'24px',display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'20px',flexWrap:'wrap'}}>
                 <div style={{flex:1,minWidth:'260px'}}>
-                  <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px',flexWrap:'wrap'}}>
                     <span style={{fontSize:'22px'}}>{item.icon}</span>
                     <span style={{fontWeight:700,fontSize:'15px'}}>{item.title}</span>
-                    <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',fontFamily:'monospace',background: item.cta ? 'rgba(245,197,66,0.08)' : 'rgba(79,255,164,0.08)',color: item.cta ? '#f5c542' : '#4fffa4',border: item.cta ? '1px solid rgba(245,197,66,0.2)' : '1px solid rgba(79,255,164,0.15)',whiteSpace:'nowrap'}}>
+                    <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',fontFamily:'monospace',background:item.cta?'rgba(245,197,66,0.08)':'rgba(79,255,164,0.08)',color:item.cta?'#f5c542':'#4fffa4',border:item.cta?'1px solid rgba(245,197,66,0.2)':'1px solid rgba(79,255,164,0.15)',whiteSpace:'nowrap'}}>
                       {item.badge}
                     </span>
                   </div>
@@ -257,6 +243,71 @@ function ProposalContent({ proposal }) {
               </div>
             ))}
           </div>
+        </Section>
+      )}
+
+      {/* ── VULNERABILITY COVERAGE ── */}
+      {showVulnSection && (
+        <Section
+          label="Vulnerability Coverage"
+          title={<>{vulnData ? vulnData.title : <><span style={{color:'#4fffa4'}}>Custom</span> Vulnerability Coverage</>}</>}
+          sub="Every category we assess — with the specific checkpoints our auditors verify for each.">
+
+          {/* Auto table for Smart Contract or Web App */}
+          {vulnData && (
+            <div style={{border:'1px solid rgba(255,255,255,0.07)',borderRadius:'10px',overflow:'auto',background:'#0d1120'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',minWidth:'500px'}}>
+                <thead>
+                  <tr>
+                    <th style={p.vulnTh}>VULNERABILITY</th>
+                    <th style={p.vulnTh}>{vulnData.colLabel}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vulnData.rows.map((row, i) => (
+                    <tr key={i} style={{borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                      <td style={{...p.vulnTd, fontWeight:700, width:'36%', verticalAlign:'top'}}>{row.vuln}</td>
+                      <td style={{...p.vulnTd, verticalAlign:'top'}}>
+                        <ul style={{margin:0, paddingLeft:'18px'}}>
+                          {row.checks.map((c,j) => (
+                            <li key={j} style={{fontSize:'13px',color:'#7a8a9e',lineHeight:1.7,marginBottom:'2px'}}>{c}</li>
+                          ))}
+                        </ul>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Custom rows for Mobile / Traditional */}
+          {!vulnData && customVulnRows.length > 0 && (
+            <div style={{border:'1px solid rgba(255,255,255,0.07)',borderRadius:'10px',overflow:'auto',background:'#0d1120'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',minWidth:'500px'}}>
+                <thead>
+                  <tr>
+                    <th style={p.vulnTh}>CATEGORY</th>
+                    <th style={p.vulnTh}>CHECKPOINTS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customVulnRows.map((row, i) => (
+                    <tr key={i} style={{borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                      <td style={{...p.vulnTd, fontWeight:700, width:'36%', verticalAlign:'top'}}>{row.category}</td>
+                      <td style={{...p.vulnTd, verticalAlign:'top'}}>
+                        <ul style={{margin:0, paddingLeft:'18px'}}>
+                          {(row.checks||[]).map((c,j) => (
+                            <li key={j} style={{fontSize:'13px',color:'#7a8a9e',lineHeight:1.7,marginBottom:'2px'}}>{c}</li>
+                          ))}
+                        </ul>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Section>
       )}
 
@@ -312,9 +363,7 @@ function ProposalContent({ proposal }) {
               <div style={{display:'flex',alignItems:'center',gap:'24px',flexWrap:'wrap'}}>
                 <span style={{fontSize:'12px',color:'#7a8a9e'}}>{a.finding}</span>
                 <a href="https://credshields.com/recently-audited?tab-name=recent" target="_blank" rel="noreferrer"
-                  style={{fontSize:'12px',color:'#4fffa4',fontFamily:'monospace',textDecoration:'none'}}>
-                  View Report →
-                </a>
+                  style={{fontSize:'12px',color:'#4fffa4',fontFamily:'monospace',textDecoration:'none'}}>View Report →</a>
               </div>
             </div>
           ))}
@@ -349,16 +398,16 @@ function ProposalContent({ proposal }) {
             </thead>
             <tbody>
               {[
-                {label:'Price', us:`$${fmt(proposal.final_price)}`, vals: compRows.map(c=>c.price)},
-                {label:'Turnaround', us:`${proposal.days} days`, vals: compRows.map(c=>c.days)},
-                {label:'Free retest', us:'✓ 3 months', vals: compRows.map(c=>c.retest)},
-                {label:'On-chain seal', us:'✓ Included', vals: compRows.map(c=>c.seal)},
-                {label:'OWASP mapped', us:'✓ Co-authored', vals: compRows.map(c=>c.owasp)},
-                {label:'Direct support', us:'✓ Telegram', vals: compRows.map(c=>c.support)},
+                {label:'Price',          us:`$${fmt(proposal.final_price)}`, vals: compRows.map(c=>c.price)},
+                {label:'Turnaround',     us:`${proposal.days} days`,         vals: compRows.map(c=>c.days)},
+                {label:'Free retest',    us:'✓ 3 months',                    vals: compRows.map(c=>c.retest)},
+                {label:'On-chain seal',  us:'✓ Included',                    vals: compRows.map(c=>c.seal)},
+                {label:'OWASP mapped',   us:'✓ Co-authored',                 vals: compRows.map(c=>c.owasp)},
+                {label:'Direct support', us:'✓ Telegram',                    vals: compRows.map(c=>c.support)},
               ].map(row=>(
                 <tr key={row.label} style={{borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
                   <td style={{padding:'14px 20px',fontSize:'13px',color:'#7a8a9e'}}>{row.label}</td>
-                  <td style={{padding:'14px 20px',fontSize:'13px',background:'rgba(79,255,164,0.03)',color: row.us.startsWith('$')||row.us.startsWith('✓') ? '#4fffa4':'#e8edf5', fontWeight: row.us.startsWith('$') ? 700:400, fontFamily: row.us.startsWith('$') ? 'monospace':'inherit'}}>{row.us}</td>
+                  <td style={{padding:'14px 20px',fontSize:'13px',background:'rgba(79,255,164,0.03)',color:row.us.startsWith('$')||row.us.startsWith('✓')?'#4fffa4':'#e8edf5',fontWeight:row.us.startsWith('$')?700:400,fontFamily:row.us.startsWith('$')?'monospace':'inherit'}}>{row.us}</td>
                   {row.vals.map((v,i)=>(
                     <td key={i} style={{padding:'14px 20px',fontSize:'13px',color:v==='✗'?'#ff4f6a':'#7a8a9e'}}>{v}</td>
                   ))}
@@ -397,7 +446,6 @@ function ProposalContent({ proposal }) {
               {[4,5].map(i=><div key={i} style={{width:'28px',height:'28px',borderRadius:'4px',background:'rgba(79,255,164,0.2)',border:'1px solid rgba(79,255,164,0.4)'}}/>)}
             </div>
           </div>
-
           <h2 style={{fontWeight:800,fontSize:'clamp(28px,5vw,44px)',lineHeight:1.15,marginBottom:'16px'}}>
             Your security. Your users.<br/><span style={{color:'#4fffa4'}}>Your reputation.</span>
           </h2>
@@ -417,12 +465,9 @@ function ProposalContent({ proposal }) {
       {/* ── FOOTER ── */}
       <div style={p.wrap}>
         <footer style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'16px',padding:'32px 0',borderTop:'1px solid rgba(255,255,255,0.07)'}}>
-          <CredShieldsLogo height={52} />
+          <CredShieldsLogo height={34} />
           <p style={{fontSize:'12px',color:'#7a8a9e'}}>20A Tanjong Pagar Road, Singapore — 088443</p>
-          <a href="https://credshields.com" target="_blank" rel="noreferrer"
-            style={{fontSize:'12px',color:'#7a8a9e',textDecoration:'underline'}}>
-            credshields.com
-          </a>
+          <a href="https://credshields.com" target="_blank" rel="noreferrer" style={{fontSize:'12px',color:'#7a8a9e',textDecoration:'underline'}}>credshields.com</a>
         </footer>
       </div>
     </div>
@@ -442,7 +487,6 @@ function Section({ label, title, sub, children }) {
   )
 }
 
-// ── Styles ──────────────────────────────────────────────────────────────────
 const p = {
   page:         {background:'#080b12',color:'#e8edf5',fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'},
   wrap:         {maxWidth:'860px',margin:'0 auto',padding:'0 32px'},
@@ -457,7 +501,7 @@ const p = {
   metaLabel:    {fontSize:'11px',letterSpacing:'0.12em',textTransform:'uppercase',color:'#7a8a9e',marginBottom:'4px',fontFamily:'monospace'},
   metaValue:    {fontSize:'15px',fontWeight:500},
   coverBadge:   {marginTop:'40px',display:'inline-flex',alignItems:'center',gap:'10px',border:'1px solid rgba(79,255,164,0.15)',background:'rgba(79,255,164,0.04)',padding:'10px 18px',borderRadius:'6px',fontSize:'13px',color:'#7a8a9e'},
-  redDot:       {width:'8px',height:'8px',borderRadius:'50%',background:'#ff4f6a',display:'inline-block',flexShrink:0,animation:'pulse 2s infinite'},
+  redDot:       {width:'8px',height:'8px',borderRadius:'50%',background:'#ff4f6a',display:'inline-block',flexShrink:0},
   greenDot:     {width:'10px',height:'10px',borderRadius:'50%',background:'#4fffa4',display:'inline-block',flexShrink:0},
   urgencyBar:   {background:'linear-gradient(90deg,rgba(255,79,106,0.1),rgba(255,79,106,0.05))',border:'1px solid rgba(255,79,106,0.25)',borderRadius:'8px',padding:'16px 24px',marginBottom:'28px',display:'flex',alignItems:'center',gap:'16px'},
   priceCard:    {border:'1px solid rgba(79,255,164,0.15)',borderRadius:'12px',overflow:'hidden',background:'#0d1120'},
@@ -478,6 +522,8 @@ const p = {
   methodCard:   {background:'#0d1120',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'10px',padding:'24px'},
   coverageBar:  {background:'#0d1120',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'8px',padding:'20px 24px',fontSize:'14px',color:'#7a8a9e',lineHeight:1.8},
   scarcityBar:  {background:'linear-gradient(90deg,rgba(79,255,164,0.07),rgba(79,255,164,0.02))',border:'1px solid rgba(79,255,164,0.15)',borderRadius:'8px',padding:'18px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'16px',marginBottom:'40px',textAlign:'left'},
+  vulnTh:       {padding:'14px 20px',textAlign:'left',fontSize:'11px',letterSpacing:'0.12em',textTransform:'uppercase',color:'#7a8a9e',borderBottom:'1px solid rgba(255,255,255,0.07)',fontFamily:'monospace',background:'rgba(255,255,255,0.02)'},
+  vulnTd:       {padding:'18px 20px',fontSize:'14px',borderBottom:'1px solid rgba(255,255,255,0.05)'},
 }
 
 const g = {

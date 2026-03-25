@@ -30,9 +30,9 @@ export async function GET() {
 
 export async function POST(req) {
   try {
-    const db = admin()
+    const db   = admin()
     const body = await req.json()
-    const { clientName, company, proposalType, originalPrice, finalPrice, loc, days, scopeDescription, slug, customTimeline } = body
+    const { clientName, company, proposalType, originalPrice, finalPrice, loc, days, scopeDescription, slug, customTimeline, customVulnerabilities } = body
 
     if (!slug || !clientName || !company) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -42,15 +42,16 @@ export async function POST(req) {
       .from('proposals')
       .insert({
         slug,
-        client_name:       clientName,
+        client_name:            clientName,
         company,
-        proposal_type:     proposalType || 'smart_contract',
-        original_price:    originalPrice,
-        final_price:       finalPrice,
+        proposal_type:          proposalType || 'smart_contract',
+        original_price:         originalPrice,
+        final_price:            finalPrice,
         loc,
         days,
-        scope_description: scopeDescription,
-        custom_timeline:   customTimeline || null,
+        scope_description:      scopeDescription,
+        custom_timeline:        customTimeline || null,
+        custom_vulnerabilities: customVulnerabilities || null,
       })
       .select()
       .single()

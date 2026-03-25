@@ -431,7 +431,7 @@ function ProposalContent({ proposal }) {
           justifyContent:'center',
         }}>
           <img
-            src="/Group 487041.svg"
+            src="/partners.svg"
             alt="CredShields Partners"
             style={{
               width:'100%',

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import CredShieldsLogo from '../../../components/Logo'
 import { PROPOSAL_TYPES, DEFAULT_TIMELINES, VULNERABILITIES } from '../../../lib/proposalTypes'
+import { PARTNER_LOGOS } from '../../../components/PartnerLogos'
 
 export default function ProposalClient({ proposal }) {
   const [unlocked,   setUnlocked]   = useState(false)
@@ -419,12 +420,39 @@ function ProposalContent({ proposal }) {
       </Section>
 
       {/* ── PARTNERS ── */}
+      {/* ── PARTNERS ── */}
       <Section label="Partners & Integrations" title={<>Trusted Across the <span style={{color:'#4fffa4'}}>Ecosystem</span></>}
         sub="Powered by SolidityScan — 2.5M+ scans completed, integrated across 80+ blockchain platforms.">
-        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'10px'}}>
-          {['Etherscan','Remix IDE','BlockScout','Subscan','Avalanche','Immunefi','Soneium','IoTeX','Linea','Rootstock','Gnosis Chain','Avascan','Fuse','Reef','BuildBear'].map(partner=>(
-            <div key={partner} style={{background:'#0d1120',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'8px',padding:'12px 16px',textAlign:'center',fontSize:'12px',fontWeight:600,color:'#7a8a9e'}}>
-              {partner}
+        <div style={{
+          display:'grid',
+          gridTemplateColumns:'repeat(4,1fr)',
+          gap:'12px',
+        }}>
+          {PARTNER_LOGOS.map(partner=>(
+            <div
+              key={partner.name}
+              style={{
+                background:'#0d1120',
+                border:'1px solid rgba(255,255,255,0.07)',
+                borderRadius:'10px',
+                padding:'20px 16px',
+                display:'flex',
+                alignItems:'center',
+                justifyContent:'center',
+                minHeight:'72px',
+              }}
+            >
+              <div
+                style={{
+                  display:'flex',
+                  alignItems:'center',
+                  justifyContent:'center',
+                  maxWidth:'100%',
+                  maxHeight:'36px',
+                  overflow:'hidden',
+                }}
+                dangerouslySetInnerHTML={{ __html: partner.svg }}
+              />
             </div>
           ))}
         </div>

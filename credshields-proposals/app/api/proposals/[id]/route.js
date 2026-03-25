@@ -11,15 +11,16 @@ export async function PATCH(req, { params }) {
     const db   = admin()
     const body = await req.json()
     const updates = {}
-    if (body.clientName       !== undefined) updates.client_name       = body.clientName
-    if (body.company          !== undefined) updates.company           = body.company
-    if (body.proposalType     !== undefined) updates.proposal_type     = body.proposalType
-    if (body.originalPrice    !== undefined) updates.original_price    = body.originalPrice
-    if (body.finalPrice       !== undefined) updates.final_price       = body.finalPrice
-    if (body.loc              !== undefined) updates.loc               = body.loc
-    if (body.days             !== undefined) updates.days              = body.days
-    if (body.scopeDescription !== undefined) updates.scope_description = body.scopeDescription
-    if (body.customTimeline   !== undefined) updates.custom_timeline   = body.customTimeline
+    if (body.clientName            !== undefined) updates.client_name            = body.clientName
+    if (body.company               !== undefined) updates.company                = body.company
+    if (body.proposalType          !== undefined) updates.proposal_type          = body.proposalType
+    if (body.originalPrice         !== undefined) updates.original_price         = body.originalPrice
+    if (body.finalPrice            !== undefined) updates.final_price            = body.finalPrice
+    if (body.loc                   !== undefined) updates.loc                    = body.loc
+    if (body.days                  !== undefined) updates.days                   = body.days
+    if (body.scopeDescription      !== undefined) updates.scope_description      = body.scopeDescription
+    if (body.customTimeline        !== undefined) updates.custom_timeline        = body.customTimeline
+    if (body.customVulnerabilities !== undefined) updates.custom_vulnerabilities = body.customVulnerabilities
     updates.updated_at = new Date().toISOString()
 
     const { data, error } = await db.from('proposals').update(updates).eq('id', params.id).select().single()

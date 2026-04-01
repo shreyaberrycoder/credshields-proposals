@@ -144,6 +144,11 @@ export default function Dashboard() {
     setTimeout(()=>setCopied(null),2500)
   }
 
+  const downloadPdf = (slug) => {
+    const url = `${window.location.origin}/p/${slug}?pdf=1`
+    window.open(url, '_blank')
+  }
+
   const exportAll = () => {
     const rows = [['Company','Client','Email','Date']]
     proposals.forEach(p=>p.leads?.forEach(l=>rows.push([p.company,p.client_name,l.email,l.viewed_at])))
@@ -260,11 +265,12 @@ export default function Dashboard() {
                     </td>
                     <td style={{...s.td,color:'#7a8a9e',fontSize:'12px'}}>{fmtDate(proposal.created_at)}</td>
                     <td style={s.td}>
-                      <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
-                        <button style={copied===proposal.slug?s.btnCopied:s.btnCopy} onClick={()=>copyLink(proposal.slug)}>{copied===proposal.slug?'✓ Copied':'⎘ Link'}</button>
-                        <button style={s.btnEdit} onClick={()=>openEdit(proposal)}>✎ Edit</button>
-                        <button style={s.btnDel}  onClick={()=>deleteProposal(proposal)}>✕</button>
-                      </div>
+                     <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
+    <button style={copied===proposal.slug?s.btnCopied:s.btnCopy} onClick={()=>copyLink(proposal.slug)}>{copied===proposal.slug?'✓ Copied':'⎘ Link'}</button>
+    <button style={s.btnPdf} onClick={()=>downloadPdf(proposal.slug)} title="Download as PDF">⬇ PDF</button>
+    <button style={s.btnEdit} onClick={()=>openEdit(proposal)}>✎ Edit</button>
+    <button style={s.btnDel}  onClick={()=>deleteProposal(proposal)}>✕</button>
+  </div>
                     </td>
                   </tr>
                   {expanded===proposal.id&&(
@@ -452,6 +458,7 @@ const s = {
   btnGhost:     {background:'transparent',color:'#7a8a9e',border:'1px solid rgba(255,255,255,0.1)',padding:'9px 16px',borderRadius:'8px',fontSize:'13px',cursor:'pointer',whiteSpace:'nowrap'},
   btnCopy:      {background:'rgba(79,255,164,0.07)',color:'#4fffa4',border:'1px solid rgba(79,255,164,0.2)',padding:'5px 10px',borderRadius:'6px',fontSize:'11px',cursor:'pointer',fontFamily:'monospace',whiteSpace:'nowrap'},
   btnCopied:    {background:'rgba(79,255,164,0.2)',color:'#4fffa4',border:'1px solid rgba(79,255,164,0.4)',padding:'5px 10px',borderRadius:'6px',fontSize:'11px',cursor:'pointer',fontFamily:'monospace',whiteSpace:'nowrap'},
+  btnPdf:       {background:'rgba(245,197,66,0.08)',color:'#f5c542',border:'1px solid rgba(245,197,66,0.2)',padding:'5px 10px',borderRadius:'6px',fontSize:'11px',cursor:'pointer',whiteSpace:'nowrap'},
   btnEdit:      {background:'rgba(100,149,255,0.08)',color:'#7faeff',border:'1px solid rgba(100,149,255,0.2)',padding:'5px 10px',borderRadius:'6px',fontSize:'11px',cursor:'pointer',whiteSpace:'nowrap'},
   btnDel:       {background:'rgba(255,79,106,0.07)',color:'#ff4f6a',border:'1px solid rgba(255,79,106,0.2)',padding:'5px 9px',borderRadius:'6px',fontSize:'11px',cursor:'pointer'},
   input:        {background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'8px',padding:'10px 14px',color:'#e8edf5',fontSize:'14px',width:'100%',outline:'none'},

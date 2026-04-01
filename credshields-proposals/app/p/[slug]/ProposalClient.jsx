@@ -3,6 +3,38 @@ import { useState, useEffect } from 'react'
 import CredShieldsLogo from '../../../components/Logo'
 import { PROPOSAL_TYPES, DEFAULT_TIMELINES, VULNERABILITIES } from '../../../lib/proposalTypes'
 
+// ── Fuzz Testing vulnerability data ─────────────────────────────────────────
+const FUZZ_VULNS = [
+  { vuln:'Stateful Invariant Testing',           checks:['Handler-based call sequences with configurable depth and run count','Protocol-wide invariants asserted after every state-changing call','Cross-contract invariant preservation (e.g., pool balance = sum of user stakes)'] },
+  { vuln:'Property-Based Unit Fuzzing',           checks:['Randomised input generation for every public/external function','Boundary value seeding (max, min, edge values)','Output postcondition assertions on return values and state deltas'] },
+  { vuln:'Arithmetic & Precision Invariants',     checks:['Exchange rate monotonicity under deposits/withdrawals','Correct rounding direction','Fee accrual vs withdrawal solvency checks'] },
+  { vuln:'Access Control & Privilege Escalation', checks:['Fuzzed caller addresses targeting restricted functions','Role-based invariant enforcement','Ownership transfer under adversarial sequences'] },
+  { vuln:'Reentrancy & Callback Safety',          checks:['Malicious callback contracts as fuzz actors','State consistency checks mid-execution','Cross-function reentrancy testing'] },
+  { vuln:'Economic & Tokenomics Invariants',      checks:['Supply conservation checks','Reward fairness across randomised sequences','No-free-value extraction guarantees'] },
+  { vuln:'Liquidity & Solvency Assertions',       checks:['Reserves ≥ user claims at all times','Withdrawal liveness guarantees','Drain-resistance under sequential withdrawals'] },
+  { vuln:'Temporal & Ordering Sensitivity',       checks:['Timestamp manipulation testing','Transaction ordering (MEV scenarios)','Epoch/reward boundary edge cases'] },
+  { vuln:'Upgrade & Proxy Storage Safety',        checks:['Storage layout collision checks','Initialisation safety','Post-upgrade invariant validation'] },
+  { vuln:'Factory & Clone Correctness',           checks:['Fuzzed deployment parameters','Clone-level invariant validation','Cross-clone isolation guarantees'] },
+  { vuln:'DoS & Gas Griefing Resilience',         checks:['Unbounded loop testing','Gas profiling under adversarial inputs','Block gas feasibility checks'] },
+  { vuln:'Campaign Reporting & Reproducibility',  checks:['Full fuzz logs with seeds and execution depth','Minimal reproducer extraction','Gas report aggregation'] },
+]
+
+// ── Multichain Deployment vulnerability data ─────────────────────────────────
+const MULTICHAIN_VULNS = [
+  { vuln:'Cross-Chain Message Integrity',             checks:['Message authenticity and ordering validation','Replay protection via nonce handling','Payload encoding/decoding consistency (LayerZero, CCIP, etc.)'] },
+  { vuln:'Chain-Specific Compiler & EVM Divergence',  checks:['Solidity version compatibility','Opcode availability differences','Gas cost variations across chains'] },
+  { vuln:'Deterministic Deployment Verification',     checks:['CREATE2 address consistency','Init code and constructor validation','Deployer nonce alignment'] },
+  { vuln:'Bridge & Relayer Trust Assumptions',        checks:['Relayer decentralisation checks','Bridge failure fallback handling','Token lock/mint parity validation'] },
+  { vuln:'Multi-Chain State Synchronisation',         checks:['Governance/state consistency across chains','Timestamp/block differences handling','Sync lag tolerance mechanisms'] },
+  { vuln:'Gas & Fee Model Divergence',                checks:['L2 calldata/blob gas differences','Dynamic gas pricing behaviour','Fee/refund mechanism validation'] },
+  { vuln:'Access Control & Admin Portability',        checks:['Multi-sig/timelock parity','Role consistency across chains','Emergency pause propagation'] },
+  { vuln:'Token Standard & Decimal Mismatch',         checks:['Decimal normalization across chains','Wrapped vs native token behaviour','Permit/EIP-2612 compatibility'] },
+  { vuln:'Upgrade & Proxy Portability',               checks:['Proxy storage consistency','Implementation alignment','Upgrade sequencing across chains'] },
+  { vuln:'Finality & Reorg Resilience',               checks:['Confirmation depth validation','Reorg handling (L1/L2)','Rollback recovery mechanisms'] },
+  { vuln:'Chain-Specific Precompiles & Features',     checks:['Precompile availability differences','Account abstraction/paymaster variations','Chain-specific system contracts'] },
+  { vuln:'End-to-End Integration & Chaos Testing',    checks:['Full cross-chain lifecycle testing','Bridge downtime/failure simulations','Multi-chain invariant fuzzing'] },
+]
+
 export default function ProposalClient({ proposal }) {
   const [unlocked,   setUnlocked]   = useState(false)
   const [email,      setEmail]      = useState('')
@@ -10,13 +42,26 @@ export default function ProposalClient({ proposal }) {
   const [error,      setError]      = useState('')
   const storageKey = `cs_unlocked_${proposal.id}`
 
+  // PDF mode — check for ?pdf=1 in URL
+  const [isPdf, setIsPdf] = useState(false)
   useEffect(() => {
-    fetch('/api/views', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ proposalId: proposal.id }),
-    })
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('pdf') === '1') {
+      setIsPdf(true)
+      setUnlocked(true)
+      setTimeout(() => window.print(), 1200)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isPdf) {
+      fetch('/api/views', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ proposalId: proposal.id }),
+      })
+    }
     if (localStorage.getItem(storageKey) === 'true') setUnlocked(true)
-  }, [proposal.id, storageKey])
+  }, [proposal.id, storageKey, isPdf])
 
   const submitEmail = async () => {
     if (!email || !email.includes('@')) return setError('Please enter a valid email address.')
@@ -32,7 +77,7 @@ export default function ProposalClient({ proposal }) {
 
   return (
     <div style={{ position:'relative', minHeight:'100vh' }}>
-      {!unlocked && (
+      {!unlocked && !isPdf && (
         <div style={g.overlay}>
           <div style={g.box}>
             <CredShieldsLogo height={40} style={{ marginBottom:'8px' }} />
@@ -54,13 +99,94 @@ export default function ProposalClient({ proposal }) {
         </div>
       )}
       <div style={{ filter: unlocked ? 'none' : 'blur(6px)', pointerEvents: unlocked ? 'auto' : 'none', userSelect: unlocked ? 'auto' : 'none' }}>
-        <ProposalContent proposal={proposal} />
+        <ProposalContent proposal={proposal} isPdf={isPdf} />
       </div>
     </div>
   )
 }
 
-function ProposalContent({ proposal }) {
+// ── Collapsible Vulnerability Table ──────────────────────────────────────────
+function CollapsibleVulnTable({ title, icon, badge, rows, forceOpen }) {
+  const [open, setOpen] = useState(false)
+  const isOpen = forceOpen || open
+
+  return (
+    <div style={{border:'1px solid rgba(255,255,255,0.07)', borderRadius:'10px', overflow:'hidden', marginBottom:'12px'}}>
+      {/* Header */}
+      <button
+        onClick={() => !forceOpen && setOpen(o => !o)}
+        style={{
+          width:'100%', background: isOpen ? 'rgba(79,255,164,0.04)' : '#0d1120',
+          border:'none', cursor: forceOpen ? 'default' : 'pointer',
+          padding:'18px 24px', display:'flex', alignItems:'center',
+          justifyContent:'space-between', gap:'12px',
+          borderBottom: isOpen ? '1px solid rgba(255,255,255,0.07)' : 'none',
+        }}
+      >
+        <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+          <span style={{fontSize:'20px'}}>{icon}</span>
+          <span style={{fontWeight:700, fontSize:'15px', color:'#e8edf5'}}>{title}</span>
+          <span style={{
+            fontSize:'11px', padding:'3px 10px', borderRadius:'20px',
+            fontFamily:'monospace', background:'rgba(79,255,164,0.08)',
+            color:'#4fffa4', border:'1px solid rgba(79,255,164,0.15)',
+          }}>{badge}</span>
+        </div>
+        {!forceOpen && (
+          <span style={{color:'#7a8a9e', fontSize:'18px', lineHeight:1}}>
+            {isOpen ? '▲' : '▼'}
+          </span>
+        )}
+      </button>
+
+      {/* Table */}
+      {isOpen && (
+        <div style={{background:'#080b12', overflow:'auto'}}>
+          <table style={{width:'100%', borderCollapse:'collapse', minWidth:'500px'}}>
+            <thead>
+              <tr>
+                <th style={vt.th}>VULNERABILITY</th>
+                <th style={vt.th}>CHECKPOINTS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => (
+                <tr key={i} style={{borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+                  <td style={{...vt.td, fontWeight:700, width:'32%', verticalAlign:'top'}}>{row.vuln}</td>
+                  <td style={{...vt.td, verticalAlign:'top'}}>
+                    <ul style={{margin:0, paddingLeft:'18px'}}>
+                      {row.checks.map((c,j) => (
+                        <li key={j} style={{fontSize:'13px', color:'#7a8a9e', lineHeight:1.7, marginBottom:'2px'}}>{c}</li>
+                      ))}
+                    </ul>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {/* Scope line */}
+          <div style={{padding:'16px 24px', borderTop:'1px solid rgba(255,255,255,0.05)', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'12px'}}>
+            <p style={{fontSize:'13px', color:'#7a8a9e', margin:0}}>
+              💬 Let us know if you need to scope out these services.
+            </p>
+            <a href="https://calendly.com/credshields-marketing/15min" target="_blank" rel="noreferrer"
+              style={{fontSize:'12px', color:'#4fffa4', fontFamily:'monospace', textDecoration:'none', border:'1px solid rgba(79,255,164,0.3)', padding:'6px 14px', borderRadius:'6px', whiteSpace:'nowrap'}}>
+              Discuss Scope →
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const vt = {
+  th: { padding:'12px 20px', textAlign:'left', fontSize:'11px', letterSpacing:'0.12em', textTransform:'uppercase', color:'#7a8a9e', borderBottom:'1px solid rgba(255,255,255,0.07)', fontFamily:'monospace', background:'rgba(255,255,255,0.02)' },
+  td: { padding:'16px 20px', fontSize:'14px', borderBottom:'1px solid rgba(255,255,255,0.04)' },
+}
+
+// ── Full Proposal ─────────────────────────────────────────────────────────────
+function ProposalContent({ proposal, isPdf }) {
   const fmt    = (n) => Number(n).toLocaleString()
   const type   = proposal.proposal_type || 'smart_contract'
   const config = PROPOSAL_TYPES[type] || PROPOSAL_TYPES.smart_contract
@@ -84,7 +210,6 @@ function ProposalContent({ proposal }) {
     support: c.support,
   }))
 
-  // Vulnerability coverage — auto for SC/WebApp, custom for others
   const vulnData = VULNERABILITIES[type] || null
   let customVulnRows = []
   if (!vulnData && proposal.custom_vulnerabilities) {
@@ -253,21 +378,21 @@ function ProposalContent({ proposal }) {
           title={<>{vulnData ? vulnData.title : <><span style={{color:'#4fffa4'}}>Custom</span> Vulnerability Coverage</>}</>}
           sub="Every category we assess — with the specific checkpoints our auditors verify for each.">
 
-          {/* Auto table for Smart Contract or Web App */}
+          {/* Standard table */}
           {vulnData && (
-            <div style={{border:'1px solid rgba(255,255,255,0.07)',borderRadius:'10px',overflow:'auto',background:'#0d1120'}}>
+            <div style={{border:'1px solid rgba(255,255,255,0.07)',borderRadius:'10px',overflow:'auto',background:'#0d1120',marginBottom:'24px'}}>
               <table style={{width:'100%',borderCollapse:'collapse',minWidth:'500px'}}>
                 <thead>
                   <tr>
-                    <th style={p.vulnTh}>VULNERABILITY</th>
-                    <th style={p.vulnTh}>{vulnData.colLabel}</th>
+                    <th style={vt.th}>VULNERABILITY</th>
+                    <th style={vt.th}>{vulnData.colLabel}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {vulnData.rows.map((row, i) => (
                     <tr key={i} style={{borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
-                      <td style={{...p.vulnTd, fontWeight:700, width:'36%', verticalAlign:'top'}}>{row.vuln}</td>
-                      <td style={{...p.vulnTd, verticalAlign:'top'}}>
+                      <td style={{...vt.td, fontWeight:700, width:'36%', verticalAlign:'top'}}>{row.vuln}</td>
+                      <td style={{...vt.td, verticalAlign:'top'}}>
                         <ul style={{margin:0, paddingLeft:'18px'}}>
                           {row.checks.map((c,j) => (
                             <li key={j} style={{fontSize:'13px',color:'#7a8a9e',lineHeight:1.7,marginBottom:'2px'}}>{c}</li>
@@ -281,21 +406,21 @@ function ProposalContent({ proposal }) {
             </div>
           )}
 
-          {/* Custom rows for Mobile / Traditional */}
+          {/* Custom rows for Mobile/Traditional */}
           {!vulnData && customVulnRows.length > 0 && (
-            <div style={{border:'1px solid rgba(255,255,255,0.07)',borderRadius:'10px',overflow:'auto',background:'#0d1120'}}>
+            <div style={{border:'1px solid rgba(255,255,255,0.07)',borderRadius:'10px',overflow:'auto',background:'#0d1120',marginBottom:'24px'}}>
               <table style={{width:'100%',borderCollapse:'collapse',minWidth:'500px'}}>
                 <thead>
                   <tr>
-                    <th style={p.vulnTh}>CATEGORY</th>
-                    <th style={p.vulnTh}>CHECKPOINTS</th>
+                    <th style={vt.th}>CATEGORY</th>
+                    <th style={vt.th}>CHECKPOINTS</th>
                   </tr>
                 </thead>
                 <tbody>
                   {customVulnRows.map((row, i) => (
                     <tr key={i} style={{borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
-                      <td style={{...p.vulnTd, fontWeight:700, width:'36%', verticalAlign:'top'}}>{row.category}</td>
-                      <td style={{...p.vulnTd, verticalAlign:'top'}}>
+                      <td style={{...vt.td, fontWeight:700, width:'36%', verticalAlign:'top'}}>{row.category}</td>
+                      <td style={{...vt.td, verticalAlign:'top'}}>
                         <ul style={{margin:0, paddingLeft:'18px'}}>
                           {(row.checks||[]).map((c,j) => (
                             <li key={j} style={{fontSize:'13px',color:'#7a8a9e',lineHeight:1.7,marginBottom:'2px'}}>{c}</li>
@@ -307,6 +432,26 @@ function ProposalContent({ proposal }) {
                 </tbody>
               </table>
             </div>
+          )}
+
+          {/* Collapsible extras — Smart Contract only */}
+          {type === 'smart_contract' && (
+            <>
+              <CollapsibleVulnTable
+                title="Fuzzing as a Service — Coverage"
+                icon="🔀"
+                badge="Add-on"
+                rows={FUZZ_VULNS}
+                forceOpen={isPdf}
+              />
+              <CollapsibleVulnTable
+                title="Multichain Deployment — Coverage"
+                icon="🔗"
+                badge="Add-on"
+                rows={MULTICHAIN_VULNS}
+                forceOpen={isPdf}
+              />
+            </>
           )}
         </Section>
       )}
@@ -421,24 +566,8 @@ function ProposalContent({ proposal }) {
       {/* ── PARTNERS ── */}
       <Section label="Partners & Integrations" title={<>Trusted Across the <span style={{color:'#4fffa4'}}>Ecosystem</span></>}
         sub="Powered by SolidityScan — 2.5M+ scans completed, integrated across 80+ blockchain platforms.">
-        <div style={{
-          background:'#0d1120',
-          border:'1px solid rgba(255,255,255,0.07)',
-          borderRadius:'12px',
-          padding:'32px 24px',
-          display:'flex',
-          alignItems:'center',
-          justifyContent:'center',
-        }}>
-          <img
-            src="/partners.svg"
-            alt="CredShields Partners"
-            style={{
-              width:'100%',
-              height:'auto',
-              display:'block',
-            }}
-          />
+        <div style={{background:'#0d1120',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'12px',padding:'32px 24px',display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <img src="/partners.svg" alt="CredShields Partners" style={{width:'100%',height:'auto',display:'block'}}/>
         </div>
       </Section>
 
@@ -503,7 +632,7 @@ const p = {
   page:         {background:'#080b12',color:'#e8edf5',fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'},
   wrap:         {maxWidth:'860px',margin:'0 auto',padding:'0 32px'},
   cover:        {minHeight:'100vh',display:'flex',flexDirection:'column',justifyContent:'center',position:'relative',overflow:'hidden',padding:'80px 0',borderBottom:'1px solid rgba(255,255,255,0.07)'},
-  coverBg:      {position:'absolute',inset:0,background:'radial-gradient(ellipse 60% 50% at 80% 30%, rgba(79,255,164,0.07) 0%, transparent 70%), radial-gradient(ellipse 40% 60% at 10% 80%, rgba(45,232,138,0.04) 0%, transparent 60%)',pointerEvents:'none'},
+  coverBg:      {position:'absolute',inset:0,background:'radial-gradient(ellipse 60% 50% at 80% 30%, rgba(79,255,164,0.07) 0%, transparent 70%)',pointerEvents:'none'},
   coverGrid:    {position:'absolute',inset:0,backgroundImage:'linear-gradient(rgba(79,255,164,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(79,255,164,0.03) 1px, transparent 1px)',backgroundSize:'48px 48px',pointerEvents:'none'},
   logoLine:     {marginBottom:'60px'},
   eyebrow:      {fontSize:'12px',letterSpacing:'0.2em',color:'#4fffa4',textTransform:'uppercase',marginBottom:'20px',fontFamily:'monospace'},
@@ -534,8 +663,6 @@ const p = {
   methodCard:   {background:'#0d1120',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'10px',padding:'24px'},
   coverageBar:  {background:'#0d1120',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'8px',padding:'20px 24px',fontSize:'14px',color:'#7a8a9e',lineHeight:1.8},
   scarcityBar:  {background:'linear-gradient(90deg,rgba(79,255,164,0.07),rgba(79,255,164,0.02))',border:'1px solid rgba(79,255,164,0.15)',borderRadius:'8px',padding:'18px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'16px',marginBottom:'40px',textAlign:'left'},
-  vulnTh:       {padding:'14px 20px',textAlign:'left',fontSize:'11px',letterSpacing:'0.12em',textTransform:'uppercase',color:'#7a8a9e',borderBottom:'1px solid rgba(255,255,255,0.07)',fontFamily:'monospace',background:'rgba(255,255,255,0.02)'},
-  vulnTd:       {padding:'18px 20px',fontSize:'14px',borderBottom:'1px solid rgba(255,255,255,0.05)'},
 }
 
 const g = {

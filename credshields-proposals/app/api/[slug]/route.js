@@ -1,3 +1,6 @@
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { renderToBuffer } from '@react-pdf/renderer'

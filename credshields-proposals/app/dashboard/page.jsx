@@ -400,8 +400,8 @@ export default function Dashboard() {
                         📋 Copy Link
                       </button>
 
-                      {/* PDF — downloads a real PDF, no print dialog */}
-                      <button style={S.btnSm} onClick={() => window.open(`/api/pdf/${p.slug}`, '_blank')}>
+                      {/* PDF — opens print-ready page, click Download PDF button */}
+                      <button style={S.btnSm} onClick={() => window.open(`/pdf/${p.slug}?print=1`, '_blank')}>
                         ⬇ PDF
                       </button>
 

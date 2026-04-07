@@ -14,41 +14,42 @@ function Toast({ msg, type }) {
   )
 }
 
+// ── Status config ─────────────────────────────────────────────────────────────
+const STATUSES = ['draft', 'sent', 'in_review', 'won', 'lost']
+const STATUS_COLORS = {
+  draft:     { bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.1)',  color: '#7a8a9e' },
+  sent:      { bg: 'rgba(79,163,255,0.08)',  border: 'rgba(79,163,255,0.25)', color: '#4fa3ff' },
+  in_review: { bg: 'rgba(245,197,66,0.08)',  border: 'rgba(245,197,66,0.25)', color: '#f5c542' },
+  won:       { bg: 'rgba(79,255,164,0.08)',  border: 'rgba(79,255,164,0.25)', color: '#4fffa4' },
+  lost:      { bg: 'rgba(255,79,106,0.08)',  border: 'rgba(255,79,106,0.25)', color: '#ff4f6a' },
+}
+
 const defaultForm = {
   clientName: '', company: '', originalPrice: '', finalPrice: '',
   loc: '', days: 6, scopeDescription: '', proposalType: 'smart_contract',
-  customTimeline: [],
-  customVulnerabilities: [],
-  // web_app
+  expiresAt: '',
+  customTimeline: [], customVulnerabilities: [],
   appUrls: '', authRequired: 'no', environments: '',
-  // mobile
   mobilePlatform: 'Both (iOS + Android)', appName: '', appStoreLink: '',
-  // multichain
   chainsInScope: '',
-  // traditional
   assetsInScope: '', complianceFramework: 'None / Not applicable',
-  // red_team
-  redTeamVectors: [],
-  crownJewels: '',
-  threatActorProfile: 'Opportunistic attacker',
-  rulesOfEngagement: '',
-  physicalInScope: 'no',
-  socialEngineeringInScope: 'yes',
-  detectionTesting: 'yes',
+  redTeamVectors: [], crownJewels: '',
+  threatActorProfile: 'Opportunistic attacker', rulesOfEngagement: '',
+  physicalInScope: 'no', socialEngineeringInScope: 'yes', detectionTesting: 'yes',
 }
 
 export default function Dashboard() {
-  const [authed, setAuthed]     = useState(false)
-  const [pw, setPw]             = useState('')
-  const [pwErr, setPwErr]       = useState(false)
+  const [authed,    setAuthed]    = useState(false)
+  const [pw,        setPw]        = useState('')
+  const [pwErr,     setPwErr]     = useState(false)
   const [proposals, setProposals] = useState([])
-  const [loading, setLoading]   = useState(false)
-  const [toast, setToast]       = useState({ msg: '', type: 'success' })
-  const [search, setSearch]     = useState('')
-  const [expanded, setExpanded] = useState({})
-  const [editId, setEditId]     = useState(null)
+  const [loading,   setLoading]   = useState(false)
+  const [toast,     setToast]     = useState({ msg: '', type: 'success' })
+  const [search,    setSearch]    = useState('')
+  const [expanded,  setExpanded]  = useState({})
+  const [editId,    setEditId]    = useState(null)
   const [activeTab, setActiveTab] = useState('proposals')
-  const [form, setForm]         = useState(defaultForm)
+  const [form,      setForm]      = useState(defaultForm)
 
   function showToast(msg, type = 'success') {
     setToast({ msg, type })
@@ -56,12 +57,14 @@ export default function Dashboard() {
   }
   function setF(key, val) { setForm(f => ({ ...f, [key]: val })) }
 
+  // ── Auth ────────────────────────────────────────────────────────────────────
   async function login() {
     const res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) })
     if (res.ok) { setAuthed(true); loadProposals() }
     else setPwErr(true)
   }
 
+  // ── Data ────────────────────────────────────────────────────────────────────
   async function loadProposals() {
     setLoading(true)
     const res = await fetch('/api/proposals')
@@ -70,6 +73,7 @@ export default function Dashboard() {
     setLoading(false)
   }
 
+  // ── Submit / Edit ───────────────────────────────────────────────────────────
   async function submitProposal() {
     if (!form.clientName || !form.company || !form.finalPrice) {
       showToast('Client name, company, and price are required.', 'error'); return
@@ -78,17 +82,18 @@ export default function Dashboard() {
     const payload = {
       clientName: form.clientName, company: form.company, slug,
       originalPrice: Number(form.originalPrice) || Number(form.finalPrice),
-      finalPrice: Number(form.finalPrice),
-      loc: Number(form.loc) || 0,
-      days: Number(form.days) || 6,
-      scopeDescription: form.scopeDescription,
-      proposalType: form.proposalType,
-      customTimeline: form.customTimeline.length > 0 ? JSON.stringify(form.customTimeline) : null,
+      finalPrice:    Number(form.finalPrice),
+      loc:           Number(form.loc) || 0,
+      days:          Number(form.days) || 6,
+      scopeDescription:      form.scopeDescription,
+      proposalType:          form.proposalType,
+      expiresAt:             form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
+      customTimeline:        form.customTimeline.length > 0 ? JSON.stringify(form.customTimeline) : null,
       customVulnerabilities: form.customVulnerabilities.length > 0 ? JSON.stringify(form.customVulnerabilities) : null,
-      // type-specific extras stored as JSON blob in extra_fields column
-      extraFields: JSON.stringify(buildExtraFields()),
+      extraFields:           JSON.stringify(buildExtraFields()),
+      status:                'draft',
     }
-    const url = editId ? `/api/proposals/${editId}` : '/api/proposals'
+    const url    = editId ? `/api/proposals/${editId}` : '/api/proposals'
     const method = editId ? 'PATCH' : 'POST'
     const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     if (res.ok) {
@@ -96,37 +101,80 @@ export default function Dashboard() {
       setForm(defaultForm); setEditId(null); loadProposals(); setActiveTab('proposals')
     } else {
       const err = await res.json()
-      showToast(err.error || 'Error. Check Supabase setup.', 'error')
+      showToast(err.error || 'Error — check Supabase setup.', 'error')
     }
   }
 
   function buildExtraFields() {
     const t = form.proposalType
-    if (t === 'web_app') return { appUrls: form.appUrls, authRequired: form.authRequired, environments: form.environments }
-    if (t === 'mobile') return { mobilePlatform: form.mobilePlatform, appName: form.appName, appStoreLink: form.appStoreLink }
-    if (t === 'multichain') return { chainsInScope: form.chainsInScope }
+    if (t === 'web_app')     return { appUrls: form.appUrls, authRequired: form.authRequired, environments: form.environments }
+    if (t === 'mobile')      return { mobilePlatform: form.mobilePlatform, appName: form.appName, appStoreLink: form.appStoreLink }
+    if (t === 'multichain')  return { chainsInScope: form.chainsInScope }
     if (t === 'traditional') return { assetsInScope: form.assetsInScope, complianceFramework: form.complianceFramework }
-    if (t === 'red_team') return {
-      redTeamVectors: form.redTeamVectors,
-      crownJewels: form.crownJewels,
-      threatActorProfile: form.threatActorProfile,
-      rulesOfEngagement: form.rulesOfEngagement,
-      physicalInScope: form.physicalInScope,
-      socialEngineeringInScope: form.socialEngineeringInScope,
+    if (t === 'red_team')    return {
+      redTeamVectors: form.redTeamVectors, crownJewels: form.crownJewels,
+      threatActorProfile: form.threatActorProfile, rulesOfEngagement: form.rulesOfEngagement,
+      physicalInScope: form.physicalInScope, socialEngineeringInScope: form.socialEngineeringInScope,
       detectionTesting: form.detectionTesting,
     }
     return {}
   }
 
+  // ── Status inline update ────────────────────────────────────────────────────
+  async function updateStatus(id, status) {
+    await fetch(`/api/proposals/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    setProposals(ps => ps.map(p => p.id === id ? { ...p, status } : p))
+  }
+
+  // ── Clone ───────────────────────────────────────────────────────────────────
+  async function cloneProposal(p) {
+    const newSlug = `${p.company.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`
+    const res = await fetch('/api/proposals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        slug:                  newSlug,
+        clientName:            `${p.client_name} (copy)`,
+        company:               p.company,
+        originalPrice:         p.original_price,
+        finalPrice:            p.final_price,
+        loc:                   p.loc,
+        days:                  p.days,
+        scopeDescription:      p.scope_description,
+        proposalType:          p.proposal_type,
+        customTimeline:        p.custom_timeline,
+        customVulnerabilities: p.custom_vulnerabilities,
+        extraFields:           p.extra_fields,
+        expiresAt:             null,
+        status:                'draft',
+      }),
+    })
+    if (res.ok) { showToast('Cloned as draft!', 'success'); loadProposals() }
+    else showToast('Clone failed.', 'error')
+  }
+
+  // ── Delete ──────────────────────────────────────────────────────────────────
   async function deleteProposal(id) {
     if (!confirm('Delete this proposal?')) return
     await fetch(`/api/proposals/${id}`, { method: 'DELETE' })
     showToast('Deleted.', 'success'); loadProposals()
   }
 
+  // ── Start edit ──────────────────────────────────────────────────────────────
   function startEdit(p) {
     setEditId(p.id)
-    const ef = p.extra_fields ? (typeof p.extra_fields === 'string' ? JSON.parse(p.extra_fields) : p.extra_fields) : {}
+    const ef = p.extra_fields
+      ? (typeof p.extra_fields === 'string' ? JSON.parse(p.extra_fields) : p.extra_fields)
+      : {}
+    // Parse expiry back to YYYY-MM-DD for the date input
+    let expiresAt = ''
+    if (p.expires_at) {
+      try { expiresAt = new Date(p.expires_at).toISOString().split('T')[0] } catch (e) {}
+    }
     setForm({
       ...defaultForm,
       clientName: p.client_name, company: p.company,
@@ -134,15 +182,14 @@ export default function Dashboard() {
       loc: p.loc || '', days: p.days || 6,
       scopeDescription: p.scope_description || '',
       proposalType: p.proposal_type || 'smart_contract',
-      customTimeline: p.custom_timeline ? JSON.parse(p.custom_timeline) : [],
+      expiresAt,
+      customTimeline:        p.custom_timeline ? JSON.parse(p.custom_timeline) : [],
       customVulnerabilities: p.custom_vulnerabilities ? JSON.parse(p.custom_vulnerabilities) : [],
-      // extra fields
       appUrls: ef.appUrls || '', authRequired: ef.authRequired || 'no', environments: ef.environments || '',
       mobilePlatform: ef.mobilePlatform || 'Both (iOS + Android)', appName: ef.appName || '', appStoreLink: ef.appStoreLink || '',
       chainsInScope: ef.chainsInScope || '',
       assetsInScope: ef.assetsInScope || '', complianceFramework: ef.complianceFramework || 'None / Not applicable',
-      redTeamVectors: ef.redTeamVectors || [],
-      crownJewels: ef.crownJewels || '',
+      redTeamVectors: ef.redTeamVectors || [], crownJewels: ef.crownJewels || '',
       threatActorProfile: ef.threatActorProfile || 'Opportunistic attacker',
       rulesOfEngagement: ef.rulesOfEngagement || '',
       physicalInScope: ef.physicalInScope || 'no',
@@ -153,14 +200,19 @@ export default function Dashboard() {
     window.scrollTo(0, 0)
   }
 
+  // ── Export leads CSV ────────────────────────────────────────────────────────
   function exportLeads() {
-    const rows = [['Proposal', 'Company', 'Email', 'Date']]
-    proposals.forEach(p => (p.leads || []).forEach(l => rows.push([p.client_name, p.company, l.email, new Date(l.viewed_at).toLocaleDateString()])))
+    const rows = [['Proposal', 'Company', 'Type', 'Value', 'Email', 'Date']]
+    proposals.forEach(p =>
+      (p.leads || []).forEach(l =>
+        rows.push([p.client_name, p.company, p.proposal_type, p.final_price, l.email, new Date(l.viewed_at).toLocaleDateString()])
+      )
+    )
     const blob = new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' })
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'leads.csv'; a.click()
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'credshields-leads.csv'; a.click()
   }
 
-  // Timeline helpers
+  // ── Timeline helpers ─────────────────────────────────────────────────────────
   const cfg = PROPOSAL_TYPES[form.proposalType] || PROPOSAL_TYPES.smart_contract
   const timeline = form.customTimeline.length > 0 ? form.customTimeline : cfg.methodology
   function updateTl(tl) { setF('customTimeline', tl) }
@@ -168,51 +220,55 @@ export default function Dashboard() {
   function addTlStep() { updateTl([...timeline, { day: '', title: '', desc: '' }]) }
   function removeTlStep(i) { updateTl(timeline.filter((_, j) => j !== i)) }
 
-  // Custom vuln helpers (traditional)
+  // ── Custom vuln helpers ──────────────────────────────────────────────────────
   function addVulnRow() { setF('customVulnerabilities', [...form.customVulnerabilities, { vuln: '', checks: ['', '', ''] }]) }
   function removeVulnRow(i) { setF('customVulnerabilities', form.customVulnerabilities.filter((_, j) => j !== i)) }
   function vulnChange(vi, field, val) { const v = [...form.customVulnerabilities]; v[vi] = { ...v[vi], [field]: val }; setF('customVulnerabilities', v) }
   function checkChange(vi, ci, val) { const v = [...form.customVulnerabilities]; v[vi].checks[ci] = val; setF('customVulnerabilities', v) }
 
-  // Red team vector toggle
+  // ── Red team vector toggle ───────────────────────────────────────────────────
   function toggleVector(id) {
     const cur = form.redTeamVectors
     setF('redTeamVectors', cur.includes(id) ? cur.filter(v => v !== id) : [...cur, id])
   }
 
-  const filtered = proposals.filter(p =>
+  // ── Computed stats ───────────────────────────────────────────────────────────
+  const filtered   = proposals.filter(p =>
     p.client_name?.toLowerCase().includes(search.toLowerCase()) ||
     p.company?.toLowerCase().includes(search.toLowerCase())
   )
   const totalLeads = proposals.reduce((n, p) => n + (p.leads?.length || 0), 0)
   const withLeads  = proposals.filter(p => (p.leads?.length || 0) > 0).length
   const leadRate   = proposals.length ? Math.round((withLeads / proposals.length) * 100) : 0
+  const wonCount   = proposals.filter(p => p.status === 'won').length
+  const activeCount= proposals.filter(p => p.status === 'sent' || p.status === 'in_review').length
 
+  // ── Style tokens ─────────────────────────────────────────────────────────────
   const S = {
-    page:    { background: '#080b12', color: '#e8edf5', minHeight: '100vh', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: 14 },
-    wrap:    { maxWidth: 1100, margin: '0 auto', padding: '0 1.5rem' },
-    nav:     { borderBottom: '1px solid rgba(79,255,164,0.08)', padding: '1rem 0' },
-    h1:      { fontFamily: 'monospace', fontSize: 13, letterSpacing: '0.1em', color: '#4fffa4', textTransform: 'uppercase' },
-    card:    { background: '#0d1117', border: '1px solid rgba(79,255,164,0.08)', borderRadius: 8, padding: '1.5rem', marginBottom: '1.5rem' },
-    label:   { fontFamily: 'monospace', fontSize: 10, color: '#7a8a9e', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6, display: 'block' },
-    input:   { width: '100%', background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, padding: '9px 12px', color: '#e8edf5', fontFamily: 'monospace', fontSize: 13, outline: 'none', boxSizing: 'border-box' },
-    select:  { width: '100%', background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, padding: '9px 12px', color: '#e8edf5', fontFamily: 'monospace', fontSize: 13, outline: 'none', boxSizing: 'border-box' },
-    textarea:{ width: '100%', background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, padding: '9px 12px', color: '#e8edf5', fontFamily: 'monospace', fontSize: 13, outline: 'none', boxSizing: 'border-box', resize: 'vertical', minHeight: 80 },
-    btn:     { background: '#4fffa4', color: '#080b12', border: 'none', padding: '9px 22px', borderRadius: 4, fontFamily: 'monospace', fontSize: 12, fontWeight: 700, cursor: 'pointer' },
-    btnSm:   { background: 'transparent', color: '#4fffa4', border: '1px solid rgba(79,255,164,0.3)', padding: '5px 12px', borderRadius: 4, fontFamily: 'monospace', fontSize: 11, cursor: 'pointer' },
-    btnDanger:{ background: 'transparent', color: '#ff6b6b', border: '1px solid rgba(255,107,107,0.3)', padding: '5px 12px', borderRadius: 4, fontFamily: 'monospace', fontSize: 11, cursor: 'pointer' },
-    grid2:   { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
-    grid3:   { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 },
-    statBox: { background: '#0d1117', border: '1px solid rgba(79,255,164,0.08)', borderRadius: 8, padding: '1rem 1.25rem' },
-    statNum: { fontSize: '1.8rem', fontWeight: 300, color: '#4fffa4', lineHeight: 1.2 },
-    statLbl: { fontFamily: 'monospace', fontSize: 9, color: '#7a8a9e', textTransform: 'uppercase', letterSpacing: '0.12em' },
-    tabBtn:  (a) => ({ background: a ? 'rgba(79,255,164,0.08)' : 'transparent', color: a ? '#4fffa4' : '#7a8a9e', border: `1px solid ${a ? 'rgba(79,255,164,0.25)' : 'rgba(255,255,255,0.06)'}`, padding: '6px 18px', borderRadius: 4, fontFamily: 'monospace', fontSize: 11, cursor: 'pointer' }),
-    sectionHdr: { fontFamily: 'monospace', fontSize: 10, color: '#4fffa4', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 12, marginTop: 24, borderBottom: '1px solid rgba(79,255,164,0.08)', paddingBottom: 6 },
-    toggle:  (on) => ({ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 4, border: `1px solid ${on ? 'rgba(79,255,164,0.3)' : 'rgba(255,255,255,0.08)'}`, background: on ? 'rgba(79,255,164,0.06)' : 'transparent', color: on ? '#4fffa4' : '#7a8a9e', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer' }),
-    vectorCard: (sel) => ({ background: sel ? 'rgba(79,255,164,0.05)' : '#0a0f1a', border: `1px solid ${sel ? 'rgba(79,255,164,0.3)' : 'rgba(255,255,255,0.06)'}`, borderRadius: 6, padding: '14px 16px', cursor: 'pointer', transition: 'all 0.15s' }),
+    page:      { background: '#080b12', color: '#e8edf5', minHeight: '100vh', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: 14 },
+    wrap:      { maxWidth: 1100, margin: '0 auto', padding: '0 1.5rem' },
+    nav:       { borderBottom: '1px solid rgba(79,255,164,0.08)', padding: '1rem 0' },
+    h1:        { fontFamily: 'monospace', fontSize: 13, letterSpacing: '0.1em', color: '#4fffa4', textTransform: 'uppercase' },
+    card:      { background: '#0d1117', border: '1px solid rgba(79,255,164,0.08)', borderRadius: 8, padding: '1.5rem', marginBottom: '1.5rem' },
+    label:     { fontFamily: 'monospace', fontSize: 10, color: '#7a8a9e', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6, display: 'block' },
+    input:     { width: '100%', background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, padding: '9px 12px', color: '#e8edf5', fontFamily: 'monospace', fontSize: 13, outline: 'none', boxSizing: 'border-box' },
+    select:    { width: '100%', background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, padding: '9px 12px', color: '#e8edf5', fontFamily: 'monospace', fontSize: 13, outline: 'none', boxSizing: 'border-box' },
+    textarea:  { width: '100%', background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, padding: '9px 12px', color: '#e8edf5', fontFamily: 'monospace', fontSize: 13, outline: 'none', boxSizing: 'border-box', resize: 'vertical', minHeight: 80 },
+    btn:       { background: '#4fffa4', color: '#080b12', border: 'none', padding: '9px 22px', borderRadius: 4, fontFamily: 'monospace', fontSize: 12, fontWeight: 700, cursor: 'pointer' },
+    btnSm:     { background: 'transparent', color: '#4fffa4', border: '1px solid rgba(79,255,164,0.3)', padding: '5px 12px', borderRadius: 4, fontFamily: 'monospace', fontSize: 11, cursor: 'pointer' },
+    btnDanger: { background: 'transparent', color: '#ff6b6b', border: '1px solid rgba(255,107,107,0.3)', padding: '5px 12px', borderRadius: 4, fontFamily: 'monospace', fontSize: 11, cursor: 'pointer' },
+    grid2:     { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
+    grid3:     { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 },
+    statBox:   { background: '#0d1117', border: '1px solid rgba(79,255,164,0.08)', borderRadius: 8, padding: '1rem 1.25rem' },
+    statNum:   { fontSize: '1.8rem', fontWeight: 300, color: '#4fffa4', lineHeight: 1.2 },
+    statLbl:   { fontFamily: 'monospace', fontSize: 9, color: '#7a8a9e', textTransform: 'uppercase', letterSpacing: '0.12em' },
+    tabBtn:    (a) => ({ background: a ? 'rgba(79,255,164,0.08)' : 'transparent', color: a ? '#4fffa4' : '#7a8a9e', border: `1px solid ${a ? 'rgba(79,255,164,0.25)' : 'rgba(255,255,255,0.06)'}`, padding: '6px 18px', borderRadius: 4, fontFamily: 'monospace', fontSize: 11, cursor: 'pointer' }),
+    sectionHdr:{ fontFamily: 'monospace', fontSize: 10, color: '#4fffa4', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 12, marginTop: 24, borderBottom: '1px solid rgba(79,255,164,0.08)', paddingBottom: 6 },
+    toggle:    (on) => ({ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 4, border: `1px solid ${on ? 'rgba(79,255,164,0.3)' : 'rgba(255,255,255,0.08)'}`, background: on ? 'rgba(79,255,164,0.06)' : 'transparent', color: on ? '#4fffa4' : '#7a8a9e', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer' }),
+    vectorCard:(sel) => ({ background: sel ? 'rgba(79,255,164,0.05)' : '#0a0f1a', border: `1px solid ${sel ? 'rgba(79,255,164,0.3)' : 'rgba(255,255,255,0.06)'}`, borderRadius: 6, padding: '14px 16px', cursor: 'pointer', transition: 'all 0.15s' }),
   }
 
-  // ── LOGIN ──────────────────────────────────────────────────────────────────
+  // ── Login screen ──────────────────────────────────────────────────────────────
   if (!authed) return (
     <div style={{ ...S.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ background: '#0d1117', border: '1px solid rgba(79,255,164,0.2)', borderRadius: 12, padding: '2.5rem 2rem', maxWidth: 380, width: '90%', textAlign: 'center' }}>
@@ -225,7 +281,7 @@ export default function Dashboard() {
     </div>
   )
 
-  // ── DASHBOARD ─────────────────────────────────────────────────────────────
+  // ── Dashboard ─────────────────────────────────────────────────────────────────
   return (
     <div style={S.page}>
       <Toast msg={toast.msg} type={toast.type} />
@@ -242,13 +298,16 @@ export default function Dashboard() {
       </nav>
 
       <div style={S.wrap}>
-        {/* STATS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, margin: '1.5rem 0' }}>
+
+        {/* ── STATS ── 6 boxes */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10, margin: '1.5rem 0' }}>
           {[
-            { label: 'Total Proposals', val: proposals.length },
-            { label: 'Total Leads',     val: totalLeads },
-            { label: 'Total Views',     val: proposals.reduce((n, p) => n + (p.views || 0), 0) },
-            { label: 'Lead Rate',       val: `${leadRate}%` },
+            { label: 'Proposals',   val: proposals.length },
+            { label: 'Active',      val: activeCount },
+            { label: 'Won',         val: wonCount },
+            { label: 'Total Leads', val: totalLeads },
+            { label: 'Total Views', val: proposals.reduce((n, p) => n + (p.views || 0), 0) },
+            { label: 'Lead Rate',   val: `${leadRate}%` },
           ].map(s => (
             <div key={s.label} style={S.statBox}>
               <div style={S.statNum}>{s.val}</div>
@@ -257,76 +316,149 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* TABS */}
+        {/* ── TABS ── */}
         <div style={{ display: 'flex', gap: 8, marginBottom: '1.5rem' }}>
           <button style={S.tabBtn(activeTab === 'proposals')} onClick={() => setActiveTab('proposals')}>All Proposals</button>
           <button style={S.tabBtn(activeTab === 'new')} onClick={() => { setActiveTab('new'); setEditId(null); setForm(defaultForm) }}>
-            {editId ? '✎ Editing' : '+ New Proposal'}
+            {editId ? '✎ Editing Proposal' : '+ New Proposal'}
           </button>
         </div>
 
-        {/* ── PROPOSAL LIST ── */}
+        {/* ══════════════════════════════════════════════════════════════════════
+            PROPOSAL LIST TAB
+        ══════════════════════════════════════════════════════════════════════ */}
         {activeTab === 'proposals' && (
           <div>
-            <input style={{ ...S.input, marginBottom: '1rem', maxWidth: 320 }} placeholder="Search client or company…" value={search} onChange={e => setSearch(e.target.value)} />
+            <input style={{ ...S.input, marginBottom: '1rem', maxWidth: 320 }}
+              placeholder="Search client or company…" value={search} onChange={e => setSearch(e.target.value)} />
+
             {loading && <p style={{ color: '#7a8a9e', fontFamily: 'monospace', fontSize: 12 }}>Loading…</p>}
-            {filtered.map(p => (
-              <div key={p.id} style={{ ...S.card, marginBottom: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>
-                      {p.client_name} <span style={{ color: '#7a8a9e', fontWeight: 400 }}>· {p.company}</span>
+
+            {filtered.map(p => {
+              const sc = STATUS_COLORS[p.status] || STATUS_COLORS.draft
+              const isExpired = p.expires_at && new Date(p.expires_at) < new Date()
+              return (
+                <div key={p.id} style={{ ...S.card, marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+
+                    {/* ── Left: meta ── */}
+                    <div style={{ flex: 1, minWidth: 260 }}>
+                      <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>
+                        {p.client_name}
+                        <span style={{ color: '#7a8a9e', fontWeight: 400 }}> · {p.company}</span>
+                        {isExpired && (
+                          <span style={{ marginLeft: 8, fontFamily: 'monospace', fontSize: 10, color: '#ff4f6a', background: 'rgba(255,79,106,0.08)', border: '1px solid rgba(255,79,106,0.2)', padding: '1px 8px', borderRadius: 20 }}>
+                            EXPIRED
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                        {/* Type badge */}
+                        <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#4fffa4', background: 'rgba(79,255,164,0.06)', border: '1px solid rgba(79,255,164,0.15)', padding: '2px 9px', borderRadius: 20 }}>
+                          {PROPOSAL_TYPES[p.proposal_type]?.label || 'Smart Contract Audit'}
+                        </span>
+                        {/* Stats */}
+                        <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#7a8a9e' }}>
+                          ${Number(p.final_price).toLocaleString()} · {p.views || 0} views · {p.leads?.length || 0} leads
+                        </span>
+                        {/* Expiry label */}
+                        {p.expires_at && !isExpired && (
+                          <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#7a8a9e' }}>
+                            expires {new Date(p.expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#4fffa4', background: 'rgba(79,255,164,0.06)', border: '1px solid rgba(79,255,164,0.15)', padding: '2px 9px', borderRadius: 20 }}>
-                        {PROPOSAL_TYPES[p.proposal_type]?.label || 'Smart Contract Audit'}
-                      </span>
-                      <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#7a8a9e' }}>
-                        ${Number(p.final_price).toLocaleString()} · {p.views || 0} views · {p.leads?.length || 0} leads
-                      </span>
+
+                    {/* ── Right: status dropdown + action buttons ── */}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+
+                      {/* STATUS DROPDOWN — saves on change, no submit needed */}
+                      <select
+                        value={p.status || 'draft'}
+                        onChange={e => updateStatus(p.id, e.target.value)}
+                        style={{
+                          background: sc.bg, color: sc.color,
+                          border: `1px solid ${sc.border}`,
+                          borderRadius: 4, padding: '5px 10px',
+                          fontFamily: 'monospace', fontSize: 11,
+                          outline: 'none', cursor: 'pointer',
+                        }}
+                      >
+                        {STATUSES.map(s => (
+                          <option key={s} value={s}>{s.replace('_', ' ').toUpperCase()}</option>
+                        ))}
+                      </select>
+
+                      {/* PREVIEW — opens proposal bypassing the email gate, doesn't record a view */}
+                      <button style={S.btnSm} onClick={() => window.open(`/p/${p.slug}?preview=1`, '_blank')}>
+                        👁 Preview
+                      </button>
+
+                      {/* COPY LINK */}
+                      <button style={S.btnSm} onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/p/${p.slug}`); showToast('Link copied!') }}>
+                        📋 Copy Link
+                      </button>
+
+                      {/* PDF — downloads a real PDF, no print dialog */}
+                      <button style={S.btnSm} onClick={() => window.open(`/api/pdf/${p.slug}`, '_blank')}>
+                        ⬇ PDF
+                      </button>
+
+                      {/* CLONE — duplicates the proposal as a new draft */}
+                      <button style={S.btnSm} onClick={() => cloneProposal(p)}>
+                        ⧉ Clone
+                      </button>
+
+                      {/* EDIT */}
+                      <button style={S.btnSm} onClick={() => startEdit(p)}>✎ Edit</button>
+
+                      {/* DELETE */}
+                      <button style={S.btnDanger} onClick={() => deleteProposal(p.id)}>✕</button>
+
+                      {/* LEADS TOGGLE */}
+                      <button style={S.btnSm} onClick={() => setExpanded(e => ({ ...e, [p.id]: !e[p.id] }))}>
+                        {expanded[p.id] ? '▲ Leads' : '▼ Leads'}
+                      </button>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <button style={S.btnSm} onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/p/${p.slug}`); showToast('Link copied!') }}>📋 Copy Link</button>
-                    <button style={S.btnSm} onClick={() => window.open(`/p/${p.slug}?pdf=1`, '_blank')}>⬇ PDF</button>
-                    <button style={S.btnSm} onClick={() => startEdit(p)}>✎ Edit</button>
-                    <button style={S.btnDanger} onClick={() => deleteProposal(p.id)}>✕</button>
-                    <button style={S.btnSm} onClick={() => setExpanded(e => ({ ...e, [p.id]: !e[p.id] }))}>
-                      {expanded[p.id] ? '▲ Leads' : '▼ Leads'}
-                    </button>
-                  </div>
+
+                  {/* ── Leads expander ── */}
+                  {expanded[p.id] && (
+                    <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(79,255,164,0.06)', paddingTop: '1rem' }}>
+                      {(p.leads || []).length === 0
+                        ? <p style={{ fontSize: 12, color: '#7a8a9e', fontFamily: 'monospace' }}>No leads yet.</p>
+                        : p.leads.map((l, i) => (
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 13 }}>
+                            <span>{l.email}</span>
+                            <span style={{ color: '#7a8a9e', fontFamily: 'monospace', fontSize: 11 }}>{new Date(l.viewed_at).toLocaleString()}</span>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  )}
                 </div>
-                {expanded[p.id] && (
-                  <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(79,255,164,0.06)', paddingTop: '1rem' }}>
-                    {(p.leads || []).length === 0
-                      ? <p style={{ fontSize: 12, color: '#7a8a9e', fontFamily: 'monospace' }}>No leads yet.</p>
-                      : p.leads.map((l, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 13 }}>
-                          <span>{l.email}</span>
-                          <span style={{ color: '#7a8a9e', fontFamily: 'monospace', fontSize: 11 }}>{new Date(l.viewed_at).toLocaleString()}</span>
-                        </div>
-                      ))
-                    }
-                  </div>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
-        {/* ── FORM ── */}
+        {/* ══════════════════════════════════════════════════════════════════════
+            NEW / EDIT FORM TAB
+        ══════════════════════════════════════════════════════════════════════ */}
         {activeTab === 'new' && (
           <div style={S.card}>
             <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: '1.5rem', color: editId ? '#f5a623' : '#4fffa4' }}>
               {editId ? '✎ Edit Proposal' : '+ Create New Proposal'}
             </h2>
 
-            {/* ── SECTION: Core ── */}
+            {/* ── Core fields ── */}
             <div style={S.sectionHdr}>Core Details</div>
 
             <div style={{ marginBottom: 14 }}>
               <label style={S.label}>Proposal Type</label>
-              <select style={S.select} value={form.proposalType} onChange={e => setForm(f => ({ ...f, proposalType: e.target.value, customTimeline: [], customVulnerabilities: [], redTeamVectors: [] }))}>
+              <select style={S.select} value={form.proposalType}
+                onChange={e => setForm(f => ({ ...f, proposalType: e.target.value, customTimeline: [], customVulnerabilities: [], redTeamVectors: [] }))}>
                 {PROPOSAL_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
@@ -342,14 +474,22 @@ export default function Dashboard() {
               <div><label style={S.label}>{form.proposalType === 'red_team' ? 'Engagement Days' : 'Audit Days'}</label><input style={S.input} type="number" placeholder="6" value={form.days} onChange={e => setF('days', e.target.value)} /></div>
             </div>
 
-            <div style={{ marginBottom: 14 }}>
-              <label style={S.label}>Scope Description</label>
-              <textarea style={S.textarea} placeholder="Describe what's in scope for this engagement…" value={form.scopeDescription} onChange={e => setF('scopeDescription', e.target.value)} />
+            {/* EXPIRY DATE */}
+            <div style={{ ...S.grid2, marginBottom: 14 }}>
+              <div>
+                <label style={S.label}>Proposal Expiry Date (optional)</label>
+                <input style={S.input} type="date" value={form.expiresAt} onChange={e => setF('expiresAt', e.target.value)} />
+                <div style={{ fontFamily: 'monospace', fontSize: 10, color: '#7a8a9e', marginTop: 4 }}>
+                  After this date the client sees an &quot;expired&quot; screen instead of the email gate
+                </div>
+              </div>
+              <div>
+                <label style={S.label}>Scope Description</label>
+                <textarea style={{ ...S.textarea, minHeight: 56 }} placeholder="What's in scope for this engagement…" value={form.scopeDescription} onChange={e => setF('scopeDescription', e.target.value)} />
+              </div>
             </div>
 
-            {/* ── SECTION: Type-specific fields ── */}
-
-            {/* LOC — smart contract, fuzzing, multichain */}
+            {/* ── LOC ── */}
             {['smart_contract', 'fuzzing', 'multichain'].includes(form.proposalType) && (
               <div style={{ marginBottom: 14 }}>
                 <label style={S.label}>Lines of Code (LOC)</label>
@@ -357,7 +497,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Multichain: chains */}
+            {/* ── MULTICHAIN: chains ── */}
             {form.proposalType === 'multichain' && (
               <>
                 <div style={S.sectionHdr}>Multi-Chain Details</div>
@@ -368,7 +508,7 @@ export default function Dashboard() {
               </>
             )}
 
-            {/* Web App */}
+            {/* ── WEB APP ── */}
             {form.proposalType === 'web_app' && (
               <>
                 <div style={S.sectionHdr}>Web Application Details</div>
@@ -392,7 +532,7 @@ export default function Dashboard() {
               </>
             )}
 
-            {/* Mobile */}
+            {/* ── MOBILE ── */}
             {form.proposalType === 'mobile' && (
               <>
                 <div style={S.sectionHdr}>Mobile Application Details</div>
@@ -415,7 +555,7 @@ export default function Dashboard() {
               </>
             )}
 
-            {/* Traditional */}
+            {/* ── TRADITIONAL ── */}
             {form.proposalType === 'traditional' && (
               <>
                 <div style={S.sectionHdr}>Assessment Details</div>
@@ -432,11 +572,11 @@ export default function Dashboard() {
               </>
             )}
 
-            {/* Red Team */}
+            {/* ── RED TEAM ── */}
             {form.proposalType === 'red_team' && (
               <>
                 <div style={S.sectionHdr}>Engagement Vectors</div>
-                <p style={{ fontSize: 12, color: '#7a8a9e', marginBottom: 12, fontFamily: 'monospace' }}>Select which vectors are in scope for this engagement</p>
+                <p style={{ fontSize: 12, color: '#7a8a9e', marginBottom: 12, fontFamily: 'monospace' }}>Select which attack vectors are in scope</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
                   {PROPOSAL_TYPES.red_team.redTeamVectors.map(v => {
                     const sel = form.redTeamVectors.includes(v.id)
@@ -456,12 +596,10 @@ export default function Dashboard() {
                 </div>
 
                 <div style={S.sectionHdr}>Engagement Parameters</div>
-
                 <div style={{ marginBottom: 14 }}>
                   <label style={S.label}>Crown Jewels / Objectives</label>
                   <textarea style={{ ...S.textarea, minHeight: 60 }} placeholder="What is the attacker trying to reach? e.g. Admin keys, on-chain treasury, internal Slack, customer PII database…" value={form.crownJewels} onChange={e => setF('crownJewels', e.target.value)} />
                 </div>
-
                 <div style={{ ...S.grid2, marginBottom: 14 }}>
                   <div>
                     <label style={S.label}>Threat Actor Profile</label>
@@ -474,7 +612,6 @@ export default function Dashboard() {
                     <input style={S.input} placeholder="e.g. No production disruption, notify CTO before physical testing" value={form.rulesOfEngagement} onChange={e => setF('rulesOfEngagement', e.target.value)} />
                   </div>
                 </div>
-
                 <div style={{ marginBottom: 20 }}>
                   <label style={S.label}>Scope Inclusions</label>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6 }}>
@@ -483,9 +620,9 @@ export default function Dashboard() {
                       { key: 'socialEngineeringInScope', label: 'Social Engineering' },
                       { key: 'detectionTesting',         label: 'Detection Testing (SOC unaware)' },
                     ].map(item => (
-                      <div key={item.key} style={{ display: 'flex', gap: 8 }}>
+                      <div key={item.key} style={{ display: 'flex', gap: 6 }}>
                         <button style={S.toggle(form[item.key] === 'yes')} onClick={() => setF(item.key, 'yes')}>✓ {item.label}</button>
-                        <button style={S.toggle(form[item.key] === 'no')} onClick={() => setF(item.key, 'no')}>✗ Exclude</button>
+                        <button style={S.toggle(form[item.key] === 'no')}  onClick={() => setF(item.key, 'no')}>✗ Exclude</button>
                       </div>
                     ))}
                   </div>
@@ -493,7 +630,7 @@ export default function Dashboard() {
               </>
             )}
 
-            {/* ── SECTION: Timeline ── */}
+            {/* ── TIMELINE ── */}
             <div style={S.sectionHdr}>
               {form.proposalType === 'red_team' ? 'Engagement Phases' : 'Audit Timeline'}
             </div>
@@ -508,22 +645,18 @@ export default function Dashboard() {
                   <input style={{ ...S.input, flex: 1 }} placeholder="Step title" value={step.title} onChange={e => tlChange(i, 'title', e.target.value)} />
                   <button style={S.btnDanger} onClick={() => removeTlStep(i)}>✕</button>
                 </div>
-                <textarea style={{ ...S.textarea, minHeight: 56 }} placeholder="Step description" value={step.desc} onChange={e => tlChange(i, 'desc', e.target.value)} />
+                <textarea style={{ ...S.textarea, minHeight: 56 }} placeholder="Description" value={step.desc} onChange={e => tlChange(i, 'desc', e.target.value)} />
               </div>
             ))}
 
-            {/* ── SECTION: Vulnerability Coverage ── */}
+            {/* ── VULNERABILITY COVERAGE ── */}
             {!['red_team'].includes(form.proposalType) && (
               <>
                 <div style={S.sectionHdr}>Vulnerability Coverage</div>
-                {['smart_contract', 'fuzzing', 'multichain', 'web_app', 'mobile'].includes(form.proposalType) && (
+                {['smart_contract','fuzzing','multichain','web_app','mobile'].includes(form.proposalType) && (
                   <div style={{ background: 'rgba(79,255,164,0.04)', border: '1px solid rgba(79,255,164,0.15)', borderRadius: 4, padding: '10px 14px', fontFamily: 'monospace', fontSize: 11, color: '#4fffa4', marginBottom: 12 }}>
                     ✓ Auto-populated with {
-                      form.proposalType === 'smart_contract' ? '13 Smart Contract' :
-                      form.proposalType === 'fuzzing'         ? '12 Fuzz Testing' :
-                      form.proposalType === 'multichain'      ? '12 Multi-Chain' :
-                      form.proposalType === 'web_app'         ? '14 Web Application (OWASP)' :
-                      '12 OWASP Mobile'
+                      { smart_contract: '13 Smart Contract', fuzzing: '12 Fuzz Testing', multichain: '12 Multi-Chain', web_app: '14 Web Application (OWASP)', mobile: '12 OWASP Mobile' }[form.proposalType]
                     } vulnerability categories
                   </div>
                 )}
@@ -538,7 +671,7 @@ export default function Dashboard() {
                           <input style={{ ...S.input, flex: 1 }} placeholder="Category name" value={v.vuln || v.category || ''} onChange={e => vulnChange(vi, 'vuln', e.target.value)} />
                           <button style={S.btnDanger} onClick={() => removeVulnRow(vi)}>✕</button>
                         </div>
-                        {(v.checks || ['', '', '']).map((c, ci) => (
+                        {(v.checks || ['','','']).map((c, ci) => (
                           <input key={ci} style={{ ...S.input, marginBottom: 6 }} placeholder={`Checkpoint ${ci + 1}`} value={c} onChange={e => checkChange(vi, ci, e.target.value)} />
                         ))}
                       </div>
@@ -548,10 +681,12 @@ export default function Dashboard() {
               </>
             )}
 
-            {/* Submit */}
+            {/* ── Submit ── */}
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               <button style={S.btn} onClick={submitProposal}>{editId ? 'Save Changes' : 'Create & Get Link'}</button>
-              {editId && <button style={S.btnSm} onClick={() => { setEditId(null); setForm(defaultForm); setActiveTab('proposals') }}>Cancel</button>}
+              {editId && (
+                <button style={S.btnSm} onClick={() => { setEditId(null); setForm(defaultForm); setActiveTab('proposals') }}>Cancel</button>
+              )}
             </div>
           </div>
         )}

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import {
   PROPOSAL_TYPES, PROPOSAL_TYPE_OPTIONS,
   COMPLIANCE_FRAMEWORKS, THREAT_ACTOR_PROFILES, MOBILE_PLATFORMS
-} from '../../lib/proposalTypes'
+} from '../../../lib/proposalTypes'
 
 function Toast({ msg, type }) {
   if (!msg) return null
@@ -51,6 +51,52 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('proposals')
   const [form,      setForm]      = useState(defaultForm)
 
+  // ── Bulk select state ──────────────────────────────────────────────────
+  const [selectedProposals, setSelectedProposals] = useState(new Set())
+  const [selectedCerts, setSelectedCerts] = useState(new Set())
+
+  function toggleSelectProposal(id) {
+    setSelectedProposals(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+  }
+  function toggleSelectAllProposals(filtered) {
+    setSelectedProposals(prev => prev.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)))
+  }
+  function toggleSelectCert(id) {
+    setSelectedCerts(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+  }
+  function toggleSelectAllCerts() {
+    setSelectedCerts(prev => prev.size === certs.length ? new Set() : new Set(certs.map(c => c.id)))
+  }
+
+  async function bulkDeleteProposals() {
+    if (!selectedProposals.size) return
+    if (!confirm(`Delete ${selectedProposals.size} proposal(s)?`)) return
+    await Promise.all([...selectedProposals].map(id => fetch(`/api/proposals/${id}`, { method: 'DELETE' })))
+    setSelectedProposals(new Set())
+    showToast(`${selectedProposals.size} proposal(s) deleted.`)
+    loadProposals()
+  }
+
+  async function bulkDeleteCerts() {
+    if (!selectedCerts.size) return
+    if (!confirm(`Delete ${selectedCerts.size} certificate(s)?`)) return
+    await Promise.all([...selectedCerts].map(id => fetch(`/api/certificates/${id}`, { method: 'DELETE' })))
+    setSelectedCerts(new Set())
+    showToast(`${selectedCerts.size} certificate(s) deleted.`)
+    loadCerts()
+  }
+
+  // ── Certificates state ───────────────────────────────────────────────────
+  const [certs,     setCerts]     = useState([])
+  const [certForm,  setCertForm]  = useState({
+    project_name: '', project_logo: '', audit_period: '', retest_date: '',
+    lead_auditor: 'Shashank (Co-founder)', report_version: 'Final',
+    audited_contract: '', network: '', contract_audited: '', contract_retested: '',
+    owasp_framework: 'SCSVS / SCWE / SCSTG', methodology: 'Manual Review',
+    critical: 0, high: 0, medium: 0, low: 0, info: 0, gas: 0, issue_date: '',
+  })
+  const setCF = (key, val) => setCertForm(f => ({ ...f, [key]: val }))
+
   function showToast(msg, type = 'success') {
     setToast({ msg, type })
     setTimeout(() => setToast({ msg: '', type: 'success' }), 3500)
@@ -60,7 +106,7 @@ export default function Dashboard() {
   // ── Auth ────────────────────────────────────────────────────────────────────
   async function login() {
     const res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) })
-    if (res.ok) { setAuthed(true); loadProposals() }
+    if (res.ok) { setAuthed(true); loadProposals(); loadCerts() }
     else setPwErr(true)
   }
 
@@ -71,6 +117,60 @@ export default function Dashboard() {
     const data = await res.json()
     setProposals(Array.isArray(data) ? data : [])
     setLoading(false)
+  }
+
+  // ── Certificates ────────────────────────────────────────────────────────────
+  async function loadCerts() {
+    const res = await fetch('/api/certificates')
+    const data = await res.json()
+    setCerts(Array.isArray(data) ? data : [])
+  }
+
+  async function submitCert() {
+    if (!certForm.project_name || !certForm.audit_period || !certForm.issue_date) {
+      showToast('Project name, audit period, and issue date are required.', 'error'); return
+    }
+    const res = await fetch('/api/certificates', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(certForm),
+    })
+    if (res.ok) {
+      showToast('Certificate created!')
+      setCertForm({ project_name: '', project_logo: '', audit_period: '', retest_date: '',
+        lead_auditor: 'Shashank (Co-founder)', report_version: 'Final',
+        audited_contract: '', network: '', contract_audited: '', contract_retested: '',
+        owasp_framework: 'SCSVS / SCWE / SCSTG', methodology: 'Manual Review',
+        critical: 0, high: 0, medium: 0, low: 0, info: 0, gas: 0, issue_date: '' })
+      loadCerts()
+      setActiveTab('certs')
+    } else { showToast('Failed to create certificate', 'error') }
+  }
+
+  async function deleteCert(id) {
+    if (!confirm('Delete this certificate?')) return
+    await fetch(`/api/certificates/${id}`, { method: 'DELETE' })
+    showToast('Certificate deleted')
+    loadCerts()
+  }
+
+  async function downloadCert(id, format) {
+    try {
+      const res = await fetch(`/api/certificates/${id}/${format}`)
+      if (!res.ok) throw new Error('Download failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `credshields-certificate.${format}`; a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) { showToast('Download failed: ' + e.message, 'error') }
+  }
+
+  function handleLogoUpload(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => setCF('project_logo', ev.target.result)
+    reader.readAsDataURL(file)
   }
 
   // ── Submit / Edit ───────────────────────────────────────────────────────────
@@ -322,6 +422,8 @@ export default function Dashboard() {
           <button style={S.tabBtn(activeTab === 'new')} onClick={() => { setActiveTab('new'); setEditId(null); setForm(defaultForm) }}>
             {editId ? '✎ Editing Proposal' : '+ New Proposal'}
           </button>
+          <button style={S.tabBtn(activeTab === 'certs')} onClick={() => { setActiveTab('certs'); loadCerts() }}>Certificates</button>
+          <button style={S.tabBtn(activeTab === 'newCert')} onClick={() => setActiveTab('newCert')}>+ New Certificate</button>
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════════
@@ -329,8 +431,16 @@ export default function Dashboard() {
         ══════════════════════════════════════════════════════════════════════ */}
         {activeTab === 'proposals' && (
           <div>
-            <input style={{ ...S.input, marginBottom: '1rem', maxWidth: 320 }}
-              placeholder="Search client or company…" value={search} onChange={e => setSearch(e.target.value)} />
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: '1rem' }}>
+              <input style={{ ...S.input, maxWidth: 320, marginBottom: 0 }}
+                placeholder="Search client or company…" value={search} onChange={e => setSearch(e.target.value)} />
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'monospace', fontSize: 11, color: '#7a8a9e', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                <input type="checkbox" checked={filtered.length > 0 && selectedProposals.size === filtered.length} onChange={() => toggleSelectAllProposals(filtered)} /> Select all
+              </label>
+              {selectedProposals.size > 0 && (
+                <button style={S.btnDanger} onClick={bulkDeleteProposals}>Delete {selectedProposals.size} selected</button>
+              )}
+            </div>
 
             {loading && <p style={{ color: '#7a8a9e', fontFamily: 'monospace', fontSize: 12 }}>Loading…</p>}
 
@@ -338,8 +448,11 @@ export default function Dashboard() {
               const sc = STATUS_COLORS[p.status] || STATUS_COLORS.draft
               const isExpired = p.expires_at && new Date(p.expires_at) < new Date()
               return (
-                <div key={p.id} style={{ ...S.card, marginBottom: '1rem' }}>
+                <div key={p.id} style={{ ...S.card, marginBottom: '1rem', border: selectedProposals.has(p.id) ? '1px solid rgba(79,255,164,0.4)' : S.card.border }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+
+                    {/* ── Checkbox ── */}
+                    <input type="checkbox" checked={selectedProposals.has(p.id)} onChange={() => toggleSelectProposal(p.id)} style={{ marginRight: 8, marginTop: 4, cursor: 'pointer' }} />
 
                     {/* ── Left: meta ── */}
                     <div style={{ flex: 1, minWidth: 260 }}>
@@ -391,17 +504,34 @@ export default function Dashboard() {
                       </select>
 
                       {/* PREVIEW — opens proposal bypassing the email gate, doesn't record a view */}
-                      <button style={S.btnSm} onClick={() => window.open(`/p/${p.slug}?preview=1`, '_blank')}>
+                      <button style={S.btnSm} onClick={() => {
+                        const prefix = p.proposal_type === 'fuzzing' ? '/f/' : p.proposal_type === 'red_team' ? '/r/' : p.proposal_type === 'multichain' ? '/m/' : '/p/'
+                        window.open(`${prefix}${p.slug}?preview=1`, '_blank')
+                      }}>
                         👁 Preview
                       </button>
 
                       {/* COPY LINK */}
-                      <button style={S.btnSm} onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/p/${p.slug}`); showToast('Link copied!') }}>
+                      <button style={S.btnSm} onClick={() => {
+                        const prefix = p.proposal_type === 'fuzzing' ? '/f/' : p.proposal_type === 'red_team' ? '/r/' : p.proposal_type === 'multichain' ? '/m/' : '/p/'
+                        navigator.clipboard.writeText(`${window.location.origin}${prefix}${p.slug}`)
+                        showToast('Link copied!')
+                      }}>
                         📋 Copy Link
                       </button>
 
-                      {/* PDF — opens print-ready page, click Download PDF button */}
-                      <button style={S.btnSm} onClick={() => window.open(`/pdf/${p.slug}?print=1`, '_blank')}>
+                      {/* PDF — downloads via server-side Puppeteer rendering */}
+                      <button style={S.btnSm} onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/pdf/${p.slug}?type=${p.proposal_type || 'smart_contract'}`)
+                          if (!res.ok) throw new Error('PDF generation failed')
+                          const blob = await res.blob()
+                          const url = URL.createObjectURL(blob)
+                          const a = document.createElement('a')
+                          a.href = url; a.download = `credshields-${p.slug}.pdf`; a.click()
+                          URL.revokeObjectURL(url)
+                        } catch (e) { alert('PDF generation failed: ' + e.message) }
+                      }}>
                         ⬇ PDF
                       </button>
 
@@ -690,6 +820,134 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+        {/* ══════════════════════════════════════════════════════════════════════
+            CERTIFICATES LIST TAB
+        ══════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'certs' && (
+          <div>
+            {certs.length > 0 && (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: '1rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'monospace', fontSize: 11, color: '#7a8a9e', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  <input type="checkbox" checked={certs.length > 0 && selectedCerts.size === certs.length} onChange={toggleSelectAllCerts} /> Select all
+                </label>
+                {selectedCerts.size > 0 && (
+                  <button style={S.btnDanger} onClick={bulkDeleteCerts}>Delete {selectedCerts.size} selected</button>
+                )}
+              </div>
+            )}
+            {certs.length === 0 ? (
+              <p style={{ color: '#7a8a9e', fontFamily: 'monospace', fontSize: 12 }}>No certificates yet.</p>
+            ) : certs.map(c => (
+              <div key={c.id} style={{ ...S.card, border: selectedCerts.has(c.id) ? '1px solid rgba(79,255,164,0.4)' : S.card.border }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="checkbox" checked={selectedCerts.has(c.id)} onChange={() => toggleSelectCert(c.id)} style={{ cursor: 'pointer' }} />
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{c.project_name}</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#4fffa4' }}>{c.cert_id}</div>
+                    </div>
+                  </div>
+                  <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#7a8a9e' }}>Issued: {c.issue_date}</div>
+                </div>
+                <div style={S.grid3}>
+                  <div><span style={S.label}>Network</span><span style={{ fontSize: 12 }}>{c.network || '—'}</span></div>
+                  <div><span style={S.label}>Lead Auditor</span><span style={{ fontSize: 12 }}>{c.lead_auditor}</span></div>
+                  <div><span style={S.label}>Methodology</span><span style={{ fontSize: 12 }}>{c.methodology}</span></div>
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'Critical', val: c.critical, bg: '#ff4f6a' },
+                    { label: 'High', val: c.high, bg: '#ff9f43' },
+                    { label: 'Medium', val: c.medium, bg: '#ffd93d' },
+                    { label: 'Low', val: c.low, bg: '#4fa3ff' },
+                    { label: 'Info', val: c.info, bg: '#4fffd5' },
+                    { label: 'Gas', val: c.gas, bg: '#7a8a9e' },
+                  ].map(s => (
+                    <span key={s.label} style={{ background: s.bg + '18', border: `1px solid ${s.bg}33`, color: s.bg, padding: '2px 10px', borderRadius: 20, fontFamily: 'monospace', fontSize: 10 }}>
+                      {s.val} {s.label}
+                    </span>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+                  <button style={S.btnSm} onClick={() => window.open(`/c/${c.id}`, '_blank')}>Preview</button>
+                  <button style={S.btnSm} onClick={() => downloadCert(c.id, 'pdf')}>PDF</button>
+                  <button style={S.btnSm} onClick={() => downloadCert(c.id, 'png')}>PNG</button>
+                  <button style={S.btnDanger} onClick={() => deleteCert(c.id)}>Delete</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            NEW CERTIFICATE TAB
+        ══════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'newCert' && (
+          <div style={S.card}>
+            <div style={S.sectionHdr}>Project Details</div>
+            <div style={S.grid2}>
+              <div><label style={S.label}>Project Name *</label><input style={S.input} value={certForm.project_name} onChange={e => setCF('project_name', e.target.value)} placeholder="e.g. PropDefi" /></div>
+              <div><label style={S.label}>Project Logo</label><input type="file" accept="image/*" onChange={handleLogoUpload} style={{ ...S.input, padding: '6px 12px' }} /></div>
+            </div>
+            {certForm.project_logo && (
+              <div style={{ marginTop: 8 }}>
+                <img src={certForm.project_logo} alt="Logo preview" style={{ height: 40, borderRadius: 4 }} />
+                <button style={{ ...S.btnDanger, marginLeft: 8 }} onClick={() => setCF('project_logo', '')}>Remove</button>
+              </div>
+            )}
+
+            <div style={S.sectionHdr}>Audit Information</div>
+            <div style={S.grid2}>
+              <div><label style={S.label}>Audit Period *</label><input style={S.input} value={certForm.audit_period} onChange={e => setCF('audit_period', e.target.value)} placeholder="e.g. Feb 28 - March 3, 2026" /></div>
+              <div><label style={S.label}>Retest Date</label><input style={S.input} value={certForm.retest_date} onChange={e => setCF('retest_date', e.target.value)} placeholder="e.g. March 11, 2026" /></div>
+              <div><label style={S.label}>Lead Auditor</label><input style={S.input} value={certForm.lead_auditor} onChange={e => setCF('lead_auditor', e.target.value)} /></div>
+              <div><label style={S.label}>Report Version</label><input style={S.input} value={certForm.report_version} onChange={e => setCF('report_version', e.target.value)} /></div>
+              <div><label style={S.label}>Audited Contract</label><input style={S.input} value={certForm.audited_contract} onChange={e => setCF('audited_contract', e.target.value)} placeholder="e.g. Token & ICO Smart Contract" /></div>
+              <div><label style={S.label}>Network</label><input style={S.input} value={certForm.network} onChange={e => setCF('network', e.target.value)} placeholder="e.g. Binance Smart Chain" /></div>
+            </div>
+
+            <div style={S.sectionHdr}>Contract Addresses</div>
+            <div style={S.grid2}>
+              <div><label style={S.label}>Contract — Audited</label><textarea style={{ ...S.textarea, minHeight: 50 }} value={certForm.contract_audited} onChange={e => setCF('contract_audited', e.target.value)} placeholder="Contract addresses (one per line)" /></div>
+              <div><label style={S.label}>Contract — Retested</label><textarea style={{ ...S.textarea, minHeight: 50 }} value={certForm.contract_retested} onChange={e => setCF('contract_retested', e.target.value)} placeholder="Contract addresses (one per line)" /></div>
+            </div>
+
+            <div style={S.sectionHdr}>Framework & Methodology</div>
+            <div style={S.grid2}>
+              <div><label style={S.label}>OWASP Framework</label><input style={S.input} value={certForm.owasp_framework} onChange={e => setCF('owasp_framework', e.target.value)} /></div>
+              <div><label style={S.label}>Methodology</label><input style={S.input} value={certForm.methodology} onChange={e => setCF('methodology', e.target.value)} /></div>
+            </div>
+
+            <div style={S.sectionHdr}>Findings Summary</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>
+              {[
+                { key: 'critical', label: 'Critical', color: '#ff4f6a' },
+                { key: 'high', label: 'High', color: '#ff9f43' },
+                { key: 'medium', label: 'Medium', color: '#ffd93d' },
+                { key: 'low', label: 'Low', color: '#4fa3ff' },
+                { key: 'info', label: 'Info', color: '#4fffd5' },
+                { key: 'gas', label: 'Gas', color: '#7a8a9e' },
+              ].map(s => (
+                <div key={s.key}>
+                  <label style={{ ...S.label, color: s.color }}>{s.label}</label>
+                  <input type="number" min="0" style={{ ...S.input, textAlign: 'center' }}
+                    value={certForm[s.key]} onChange={e => setCF(s.key, parseInt(e.target.value) || 0)} />
+                </div>
+              ))}
+            </div>
+
+            <div style={S.sectionHdr}>Issue Date</div>
+            <div style={{ maxWidth: 300 }}>
+              <label style={S.label}>Issue Date *</label>
+              <input style={S.input} value={certForm.issue_date} onChange={e => setCF('issue_date', e.target.value)} placeholder="e.g. March 27, 2026" />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button style={S.btn} onClick={submitCert}>Generate Certificate</button>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   )

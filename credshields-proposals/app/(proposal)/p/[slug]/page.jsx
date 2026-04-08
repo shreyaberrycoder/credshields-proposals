@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
-import { PROPOSAL_TYPES } from '../../../lib/proposalTypes'
+import { PROPOSAL_TYPES } from '../../../../lib/proposalTypes'
 
 function db() {
   return createClient(
@@ -10,7 +10,7 @@ function db() {
 }
 
 export default async function PdfPage({ params }) {
-  const { slug } = params
+  const { slug } = await params
 
   const { data: proposal, error } = await db()
     .from('proposals')
@@ -58,12 +58,9 @@ export default async function PdfPage({ params }) {
   }
 
   return (
-    <html lang="en">
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>{proposal.company} — CredShields Proposal</title>
-        <style dangerouslySetInnerHTML={{ __html: `
+    <>
+      <title>{`${proposal.company} | CredShields Proposal`}</title>
+      <style dangerouslySetInnerHTML={{ __html: `
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
           * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -90,11 +87,17 @@ export default async function PdfPage({ params }) {
 
           /* ── PRINT ── */
           @media print {
-            body { background: #080b12 !important; }
+            body { background: #080b12 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .no-print { display: none !important; }
-            .page-break { page-break-before: always; }
-            .avoid-break { page-break-inside: avoid; }
-            @page { size: A4; margin: 0; }
+            .page-break { break-before: page; page-break-before: always; }
+            .avoid-break { break-inside: avoid; page-break-inside: avoid; }
+            .cover { break-after: page; page-break-after: always; }
+            h2, .section-label { break-after: avoid; page-break-after: avoid; }
+            .tl-row, .del-card, .audit-row, .testimonial, .threat-card, .vector-row,
+            .price-card, .comp-table tr, .vuln-table tr, .stat-box {
+              break-inside: avoid; page-break-inside: avoid;
+            }
+            @page { size: A4; margin: 10mm 0; }
           }
 
           /* ── PRINT TRIGGER BUTTON ── */
@@ -238,18 +241,23 @@ export default async function PdfPage({ params }) {
           footer { display: flex; justify-content: space-between; align-items: center; padding: 24px 0; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); }
           footer a { color: var(--muted); }
         ` }} />
-      </head>
-      <body>
 
-        {/* Print button — hidden when printing */}
-        <button className="print-btn no-print" onClick={() => window.print()}>
-          ⬇ Download PDF
-        </button>
+      {/* Print button, injected via client-side script */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          var btn = document.createElement('button');
+          btn.className = 'print-btn no-print';
+          btn.textContent = '⬇ Download PDF';
+          btn.onclick = function() { window.print(); };
+          document.body.prepend(btn);
+        ` }} />
 
         {/* ── COVER ── */}
         <div className="cover">
           <div className="wrap">
-            <div className="eyebrow">— {config.label}</div>
+            <div style={{ marginBottom: 24 }}>
+              <img src="/credshields-logo-white.png" alt="CredShields" style={{ height: 60 }} />
+            </div>
+            <div className="eyebrow">{config.label}</div>
             <h1 className="cover-title">
               {isRedTeam ? <>Think like<br />the enemy.<br /><span className="accent">Before they do.</span></> :
                type === 'smart_contract' ? <>Security<br />Audit<br /><span className="accent">Proposal</span></> :
@@ -261,7 +269,7 @@ export default async function PdfPage({ params }) {
             </h1>
             <p className="cover-sub">
               {isRedTeam
-                ? `A full-spectrum adversarial engagement designed for ${proposal.company} — before a real attacker finds what your defences missed.`
+                ? `A full-spectrum adversarial engagement designed for ${proposal.company}, before a real attacker finds what your defences missed.`
                 : `Prepared exclusively for ${proposal.client_name} at ${proposal.company}.`}
             </p>
             <div className="cover-meta">
@@ -272,7 +280,7 @@ export default async function PdfPage({ params }) {
             </div>
             <div className="cover-badge">
               <span className="red-dot" />
-              {isRedTeam ? 'Confidential engagement — NDA applies' : `Only 2 audit slots remaining in ${month} — availability is limited`}
+              {isRedTeam ? 'Confidential engagement. NDA applies' : `Only 2 audit slots remaining in ${month}. Availability is limited`}
             </div>
           </div>
         </div>
@@ -283,7 +291,7 @@ export default async function PdfPage({ params }) {
             <div className="wrap">
               <div className="section-label">01 Why Red Teaming</div>
               <h2 className="section-title">The threat is real. <span className="accent">The question is readiness.</span></h2>
-              <p className="section-sub">Traditional security audits find known vulnerabilities. Red teaming finds what attackers actually exploit — the gaps between your controls, your people, your protocols, and your assumptions.</p>
+              <p className="section-sub">Traditional security audits find known vulnerabilities. Red teaming finds what attackers actually exploit: the gaps between your controls, your people, your protocols, and your assumptions.</p>
               <div className="threat-grid">
                 {[
                   { icon: '⛓️', title: 'On-Chain Protocol Risk',     stat: '$3.6B lost in 2025',  desc: 'Smart contract vulnerabilities, flash loan attacks, oracle manipulation, and governance exploits continue to drain billions.' },
@@ -310,14 +318,14 @@ export default async function PdfPage({ params }) {
           <div className="wrap">
             <div className="section-label">{isRedTeam ? '02 Engagement Scope' : 'Scope & Pricing'}</div>
             <h2 className="section-title">{isRedTeam ? <>Engagement <span className="accent">Overview</span></> : <>Your Audit, <span className="accent">Scoped & Priced</span></>}</h2>
-            <p className="section-sub">{isRedTeam ? 'Full-spectrum adversarial simulation — scoped around your specific threat model and crown jewels.' : "Everything included. No surprises. 50% to start, 50% after retest."}</p>
+            <p className="section-sub">{isRedTeam ? 'Full-spectrum adversarial simulation, scoped around your specific threat model and crown jewels.' : "Everything included. No surprises. 50% to start, 50% after retest."}</p>
             <div className="urgency">
               <span>⚠️</span>
-              <span><strong style={{ color: isRedTeam ? '#4fa3ff' : '#ff4f6a' }}>{isRedTeam ? 'Adversaries are already conducting reconnaissance against your organisation.' : '$3.6B+ was lost to exploits in 2025.'}</strong>{' '}{isRedTeam ? "The question is not whether you'll be targeted — it's whether you'll know." : 'An audit at this stage is the highest-ROI security investment your protocol will ever make.'}</span>
+              <span><strong style={{ color: isRedTeam ? '#4fa3ff' : '#ff4f6a' }}>{isRedTeam ? 'Adversaries are already conducting reconnaissance against your organisation.' : '$3.6B+ was lost to exploits in 2025.'}</strong>{' '}{isRedTeam ? "The question is not whether you'll be targeted. It's whether you'll know." : 'An audit at this stage is the highest-ROI security investment your protocol will ever make.'}</span>
             </div>
             <div className="price-card avoid-break">
               <div className="price-head">
-                <span className="price-head-txt">{proposal.company} — {config.label}</span>
+                <span className="price-head-txt">{proposal.company} | {config.label}</span>
                 {disc > 0 && <span className="disc-badge">{disc}% DISCOUNT APPLIED</span>}
               </div>
               {[
@@ -416,11 +424,11 @@ export default async function PdfPage({ params }) {
         </div>
 
         {/* ── DELIVERABLES ── */}
-        <div className="section">
+        <div className="section page-break">
           <div className="wrap">
             <div className="section-label">Deliverables</div>
             <h2 className="section-title">What You <span className="accent">Walk Away With</span></h2>
-            <p className="section-sub">{isRedTeam ? 'Every red team engagement produces actionable intelligence — not just a list of CVEs.' : 'Three compounding credibility assets not just a PDF.'}</p>
+            <p className="section-sub">{isRedTeam ? 'Every red team engagement produces actionable intelligence, not just a list of CVEs.' : 'Three compounding credibility assets not just a PDF.'}</p>
             <div className="del-grid">
               {(isRedTeam ? [
                 { icon: '📋', title: 'Executive Summary Report',  desc: 'Board-ready narrative of risk posture, key findings, and strategic recommendations.', tag: 'Board-ready' },
@@ -451,7 +459,7 @@ export default async function PdfPage({ params }) {
             <div className="wrap">
               <div className="section-label">Vulnerability Coverage</div>
               <h2 className="section-title">{vulnRows ? <>{vulnRows.length} Categories <span className="accent">Mapped to Standards</span></> : <><span className="accent">Custom</span> Vulnerability Coverage</>}</h2>
-              <p className="section-sub">Every category we assess — with the specific checkpoints our auditors verify for each.</p>
+              <p className="section-sub">Every category we assess, with the specific checkpoints our auditors verify for each.</p>
               <table className="vuln-table">
                 <thead><tr><th className="vuln-th">VULNERABILITY</th><th className="vuln-th">CHECKPOINTS</th></tr></thead>
                 <tbody>
@@ -471,9 +479,9 @@ export default async function PdfPage({ params }) {
         <div className="section page-break">
           <div className="wrap">
             <div className="section-label">Social Proof</div>
-            <h2 className="section-title">Trusted by <span className="accent">200+ Organisations</span></h2>
+            <h2 className="section-title">Trusted by <span className="accent">300+ Companies</span></h2>
             <div className="stats-row">
-              {[{ num: '2.5M+', lbl: 'Scans on SolidityScan' }, { num: '200+', lbl: 'Global clients' }, { num: '80+', lbl: 'Blockchain platforms' }].map(s => (
+              {[{ num: '4.5M+', lbl: 'Scans on SolidityScan' }, { num: '300+', lbl: 'Companies' }, { num: '90+', lbl: 'Blockchain platforms' }].map(s => (
                 <div key={s.lbl} className="stat-box"><span className="stat-num">{s.num}</span><span className="stat-lbl">{s.lbl}</span></div>
               ))}
             </div>
@@ -482,7 +490,7 @@ export default async function PdfPage({ params }) {
               <div className="test-author">Marcus K.</div><div className="test-role">CTO, DeFi Lending Protocol</div>
             </div>
             <div className="testimonial avoid-break">
-              <p className="test-quote">{isRedTeam ? '"The red team engagement was the most revealing exercise we\'ve conducted. They got further than we thought possible — through our Telegram admin account — in less than 72 hours."' : '"The audit report was the first thing our lead investor asked for in due diligence. Having the CredShields badge and the on-chain seal reference in our data room closed that conversation immediately."'}</p>
+              <p className="test-quote">{isRedTeam ? '"The red team engagement was the most revealing exercise we\'ve conducted. They got further than we thought possible, through our Telegram admin account, in less than 72 hours."' : '"The audit report was the first thing our lead investor asked for in due diligence. Having the CredShields badge and the on-chain seal reference in our data room closed that conversation immediately."'}</p>
               <div className="test-author">{isRedTeam ? 'James R.' : 'Sarah L.'}</div>
               <div className="test-role">{isRedTeam ? 'CISO, Web3 Financial Protocol' : 'Founder, RWA Tokenization Protocol'}</div>
             </div>
@@ -490,7 +498,7 @@ export default async function PdfPage({ params }) {
         </div>
 
         {/* ── PAST AUDITS ── */}
-        <div className="section">
+        <div className="section page-break">
           <div className="wrap">
             <div className="section-label">Track Record</div>
             <h2 className="section-title">Selected <span className="accent">{isRedTeam ? 'Past Engagements' : 'Past Audits'}</span></h2>
@@ -532,7 +540,7 @@ export default async function PdfPage({ params }) {
                   { label: 'Turnaround',      us: `${proposal.days} ${isRedTeam ? 'phases' : 'days'}`,  vals: compRows.map(c => c.turnaround) },
                   { label: isRedTeam ? 'Web3-native' : 'Free retest', us: isRedTeam ? '✓ Purpose-built' : '✓ 3 months', vals: compRows.map(() => '✗') },
                   { label: 'Remediation',     us: '✓ Included',                                          vals: compRows.map(() => '✗') },
-                  { label: 'OWASP mapped',    us: '✓ Co-authored',                                       vals: compRows.map(() => '—') },
+                  { label: 'OWASP mapped',    us: '✓ Co-authored',                                       vals: compRows.map(() => '-') },
                   { label: 'Direct support',  us: '✓ Telegram',                                          vals: compRows.map(c => c.notes) },
                 ].map(row => (
                   <tr key={row.label}>
@@ -553,12 +561,12 @@ export default async function PdfPage({ params }) {
               {isRedTeam ? <>Ready to know<br /><span className="accent">where you&apos;re exposed?</span></> : <>Your security. Your users.<br /><span className="accent">Your reputation.</span></>}
             </h2>
             <p className="cta-sub">
-              {isRedTeam ? "The first conversation is confidential and focused on your specific threat model. We'll help you determine the right scope before any commitment." : "Don't ship unaudited. One exploited vulnerability undoes everything you've built — the community, the trust, the TVL."}
+              {isRedTeam ? "The first conversation is confidential and focused on your specific threat model. We'll help you determine the right scope before any commitment." : "Don't ship unaudited. One exploited vulnerability undoes everything you've built: the community, the trust, the TVL."}
             </p>
             <a className="cta-btn" href="https://calendly.com/credshields-marketing/15min" target="_blank" rel="noreferrer">
               {isRedTeam ? '→ Book a Scoping Call' : '→ Book Your Audit Slot Now'}
             </a>
-            <p className="cta-tg">Or DM on Telegram: <strong style={{ color: '#e8edf5' }}>@cred_shields</strong> — we respond within 2 hours.</p>
+            <p className="cta-tg">Or DM on Telegram: <strong style={{ color: '#e8edf5' }}>@cred_shields</strong>. We respond within 2 hours.</p>
           </div>
         </div>
 
@@ -579,7 +587,6 @@ export default async function PdfPage({ params }) {
           }
         ` }} />
 
-      </body>
-    </html>
+    </>
   )
 }

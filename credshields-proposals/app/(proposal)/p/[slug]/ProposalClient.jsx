@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { PROPOSAL_TYPES } from '../../../lib/proposalTypes'
+import { PROPOSAL_TYPES } from '../../../../lib/proposalTypes'
 
 function CredShieldsLogo({ height = 40 }) {
   return <img src="/cs-logo.png" alt="CredShields" style={{ height, width: 'auto', display: 'block' }} onError={e => { e.target.style.display = 'none' }} />

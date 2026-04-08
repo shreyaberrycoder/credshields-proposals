@@ -34,7 +34,7 @@ export async function GET(req, { params }) {
     await page.goto(`${baseUrl}/c/${id}`, { waitUntil: 'networkidle0', timeout: 30000 })
     await page.evaluateHandle('document.fonts.ready')
 
-    const el = await page.$('.cert')
+    const el = await page.$('.cert-screen')
     const png = await el.screenshot({ type: 'png', omitBackground: false })
 
     return new Response(png, {

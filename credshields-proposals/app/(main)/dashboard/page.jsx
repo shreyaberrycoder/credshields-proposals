@@ -36,6 +36,8 @@ const defaultForm = {
   redTeamVectors: [], crownJewels: '',
   threatActorProfile: 'Opportunistic attacker', rulesOfEngagement: '',
   physicalInScope: 'no', socialEngineeringInScope: 'yes', detectionTesting: 'yes',
+  customTextEnabled: false, customText: '', customTextSection: 'after_pricing',
+  paymentEnabled: false, paymentStructure: '', paymentSection: 'after_pricing',
 }
 
 export default function Dashboard() {
@@ -86,6 +88,51 @@ export default function Dashboard() {
     loadCerts()
   }
 
+  // ── Integration proposals state ────────────────────────────────────────
+  const [integrations, setIntegrations] = useState([])
+  const [intForm, setIntForm] = useState({ company: '', proposal_date: '', chain_name: 'Unichain', explorer_name: 'Unichain Explorer', integration_fee: '$2500', company_logo: '', explorer_screenshot: '' })
+
+  async function loadIntegrations() {
+    const res = await fetch('/api/integration-proposals')
+    const data = await res.json()
+    setIntegrations(Array.isArray(data) ? data : [])
+  }
+
+  async function submitIntegration() {
+    if (!intForm.company || !intForm.proposal_date) {
+      showToast('Company and date are required.', 'error'); return
+    }
+    const res = await fetch('/api/integration-proposals', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(intForm),
+    })
+    if (res.ok) {
+      showToast('Integration proposal created!')
+      setIntForm({ company: '', proposal_date: '' })
+      loadIntegrations()
+      setActiveTab('integrations')
+    } else { showToast('Failed to create integration proposal', 'error') }
+  }
+
+  async function deleteIntegration(id) {
+    if (!confirm('Delete this integration proposal?')) return
+    await fetch(`/api/integration-proposals/${id}`, { method: 'DELETE' })
+    showToast('Deleted.')
+    loadIntegrations()
+  }
+
+  async function downloadIntegrationPdf(id) {
+    try {
+      const res = await fetch(`/api/pdf/integration/${id}`)
+      if (!res.ok) throw new Error('PDF generation failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `solidityscan-integration-proposal.pdf`; a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) { showToast('PDF download failed: ' + e.message, 'error') }
+  }
+
   // ── Certificates state ───────────────────────────────────────────────────
   const [certs,     setCerts]     = useState([])
   const [certForm,  setCertForm]  = useState({
@@ -106,7 +153,7 @@ export default function Dashboard() {
   // ── Auth ────────────────────────────────────────────────────────────────────
   async function login() {
     const res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) })
-    if (res.ok) { setAuthed(true); loadProposals(); loadCerts() }
+    if (res.ok) { setAuthed(true); loadProposals(); loadCerts(); loadIntegrations() }
     else setPwErr(true)
   }
 
@@ -207,17 +254,26 @@ export default function Dashboard() {
 
   function buildExtraFields() {
     const t = form.proposalType
-    if (t === 'web_app')     return { appUrls: form.appUrls, authRequired: form.authRequired, environments: form.environments }
-    if (t === 'mobile')      return { mobilePlatform: form.mobilePlatform, appName: form.appName, appStoreLink: form.appStoreLink }
-    if (t === 'multichain')  return { chainsInScope: form.chainsInScope }
-    if (t === 'traditional') return { assetsInScope: form.assetsInScope, complianceFramework: form.complianceFramework }
+    const common = {}
+    if (form.customTextEnabled && form.customText) {
+      common.customText = form.customText
+      common.customTextSection = form.customTextSection
+    }
+    if (form.paymentEnabled && form.paymentStructure) {
+      common.paymentStructure = form.paymentStructure
+      common.paymentSection = form.paymentSection
+    }
+    if (t === 'web_app')     return { ...common, appUrls: form.appUrls, authRequired: form.authRequired, environments: form.environments }
+    if (t === 'mobile')      return { ...common, mobilePlatform: form.mobilePlatform, appName: form.appName, appStoreLink: form.appStoreLink }
+    if (t === 'multichain')  return { ...common, chainsInScope: form.chainsInScope }
+    if (t === 'traditional') return { ...common, assetsInScope: form.assetsInScope, complianceFramework: form.complianceFramework }
     if (t === 'red_team')    return {
-      redTeamVectors: form.redTeamVectors, crownJewels: form.crownJewels,
+      ...common, redTeamVectors: form.redTeamVectors, crownJewels: form.crownJewels,
       threatActorProfile: form.threatActorProfile, rulesOfEngagement: form.rulesOfEngagement,
       physicalInScope: form.physicalInScope, socialEngineeringInScope: form.socialEngineeringInScope,
       detectionTesting: form.detectionTesting,
     }
-    return {}
+    return common
   }
 
   // ── Status inline update ────────────────────────────────────────────────────
@@ -295,6 +351,8 @@ export default function Dashboard() {
       physicalInScope: ef.physicalInScope || 'no',
       socialEngineeringInScope: ef.socialEngineeringInScope || 'yes',
       detectionTesting: ef.detectionTesting || 'yes',
+      customTextEnabled: !!ef.customText, customText: ef.customText || '', customTextSection: ef.customTextSection || 'after_pricing',
+      paymentEnabled: !!ef.paymentStructure, paymentStructure: ef.paymentStructure || '', paymentSection: ef.paymentSection || 'after_pricing',
     })
     setActiveTab('new')
     window.scrollTo(0, 0)
@@ -424,6 +482,8 @@ export default function Dashboard() {
           </button>
           <button style={S.tabBtn(activeTab === 'certs')} onClick={() => { setActiveTab('certs'); loadCerts() }}>Certificates</button>
           <button style={S.tabBtn(activeTab === 'newCert')} onClick={() => setActiveTab('newCert')}>+ New Certificate</button>
+          <button style={S.tabBtn(activeTab === 'integrations')} onClick={() => { setActiveTab('integrations'); loadIntegrations() }}>Integrations</button>
+          <button style={S.tabBtn(activeTab === 'newInt')} onClick={() => setActiveTab('newInt')}>+ New Integration</button>
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════════
@@ -811,6 +871,70 @@ export default function Dashboard() {
               </>
             )}
 
+            {/* ── Optional: Custom Text ── */}
+            <div style={S.sectionHdr}>Optional Sections</div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 8 }}>
+                <input type="checkbox" checked={form.customTextEnabled} onChange={e => setF('customTextEnabled', e.target.checked)} />
+                <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#e8edf5' }}>Add custom text section</span>
+              </label>
+              {form.customTextEnabled && (
+                <div style={{ paddingLeft: 24 }}>
+                  <div style={S.grid2}>
+                    <div>
+                      <label style={S.label}>Custom Text</label>
+                      <textarea style={S.textarea} value={form.customText} onChange={e => setF('customText', e.target.value)} placeholder="Enter custom text to include in the proposal..." />
+                    </div>
+                    <div>
+                      <label style={S.label}>Place After Section</label>
+                      <select style={S.select} value={form.customTextSection} onChange={e => setF('customTextSection', e.target.value)}>
+                        <option value="after_cover">After Cover</option>
+                        <option value="after_pricing">After Pricing / Scope</option>
+                        <option value="after_timeline">After Timeline / Methodology</option>
+                        <option value="after_deliverables">After Deliverables</option>
+                        <option value="after_vulnerabilities">After Vulnerability Coverage</option>
+                        <option value="after_social_proof">After Social Proof</option>
+                        <option value="after_track_record">After Track Record</option>
+                        <option value="after_comparison">After Comparison</option>
+                        <option value="before_cta">Before CTA</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 8 }}>
+                <input type="checkbox" checked={form.paymentEnabled} onChange={e => setF('paymentEnabled', e.target.checked)} />
+                <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#e8edf5' }}>Add payment structure section</span>
+              </label>
+              {form.paymentEnabled && (
+                <div style={{ paddingLeft: 24 }}>
+                  <div style={S.grid2}>
+                    <div>
+                      <label style={S.label}>Payment Structure</label>
+                      <textarea style={S.textarea} value={form.paymentStructure} onChange={e => setF('paymentStructure', e.target.value)} placeholder="e.g. 50% upfront upon signing, 25% at draft report delivery, 25% upon final report..." />
+                    </div>
+                    <div>
+                      <label style={S.label}>Place After Section</label>
+                      <select style={S.select} value={form.paymentSection} onChange={e => setF('paymentSection', e.target.value)}>
+                        <option value="after_cover">After Cover</option>
+                        <option value="after_pricing">After Pricing / Scope</option>
+                        <option value="after_timeline">After Timeline / Methodology</option>
+                        <option value="after_deliverables">After Deliverables</option>
+                        <option value="after_vulnerabilities">After Vulnerability Coverage</option>
+                        <option value="after_social_proof">After Social Proof</option>
+                        <option value="after_track_record">After Track Record</option>
+                        <option value="after_comparison">After Comparison</option>
+                        <option value="before_cta">Before CTA</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* ── Submit ── */}
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               <button style={S.btn} onClick={submitProposal}>{editId ? 'Save Changes' : 'Create & Get Link'}</button>
@@ -944,6 +1068,86 @@ export default function Dashboard() {
 
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
               <button style={S.btn} onClick={submitCert}>Generate Certificate</button>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            INTEGRATION PROPOSALS LIST TAB
+        ══════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'integrations' && (
+          <div>
+            {integrations.length === 0 ? (
+              <p style={{ color: '#7a8a9e', fontFamily: 'monospace', fontSize: 12 }}>No integration proposals yet.</p>
+            ) : integrations.map(ip => (
+              <div key={ip.id} style={S.card}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>{ip.company}</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#4fffa4' }}>SolidityScan Integration</div>
+                  </div>
+                  <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#7a8a9e' }}>{ip.proposal_date}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                  <button style={S.btnSm} onClick={() => window.open(`/i/${ip.id}`, '_blank')}>Preview</button>
+                  <button style={S.btnSm} onClick={() => downloadIntegrationPdf(ip.id)}>PDF</button>
+                  <button style={S.btnDanger} onClick={() => deleteIntegration(ip.id)}>Delete</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            NEW INTEGRATION PROPOSAL TAB
+        ══════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'newInt' && (
+          <div style={S.card}>
+            <div style={S.sectionHdr}>SolidityScan Integration Proposal</div>
+            <div style={S.grid2}>
+              <div><label style={S.label}>Company / Chain Name *</label><input style={S.input} value={intForm.company} onChange={e => setIntForm(f => ({ ...f, company: e.target.value }))} placeholder="e.g. Unichain" /></div>
+              <div><label style={S.label}>Proposal Date *</label><input style={S.input} value={intForm.proposal_date} onChange={e => setIntForm(f => ({ ...f, proposal_date: e.target.value }))} placeholder="e.g. 6th April 2026" /></div>
+              <div><label style={S.label}>Chain Name (used in slides)</label><input style={S.input} value={intForm.chain_name} onChange={e => setIntForm(f => ({ ...f, chain_name: e.target.value }))} placeholder="e.g. Unichain" /></div>
+              <div><label style={S.label}>Explorer Name (used in slides)</label><input style={S.input} value={intForm.explorer_name} onChange={e => setIntForm(f => ({ ...f, explorer_name: e.target.value }))} placeholder="e.g. Unichain Explorer" /></div>
+              <div><label style={S.label}>One Time Integration Fee</label><input style={S.input} value={intForm.integration_fee} onChange={e => setIntForm(f => ({ ...f, integration_fee: e.target.value }))} placeholder="e.g. $2500" /></div>
+            </div>
+
+            <div style={S.sectionHdr}>Logos & Screenshots</div>
+            <div style={S.grid2}>
+              <div>
+                <label style={S.label}>Company / Chain Logo (cover slide)</label>
+                <input type="file" accept="image/*" onChange={e => {
+                  const file = e.target.files[0]; if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = (ev) => setIntForm(f => ({ ...f, company_logo: ev.target.result }))
+                  reader.readAsDataURL(file)
+                }} style={{ ...S.input, padding: '6px 12px' }} />
+                {intForm.company_logo && (
+                  <div style={{ marginTop: 8 }}>
+                    <img src={intForm.company_logo} alt="Logo" style={{ height: 40, borderRadius: 4 }} />
+                    <button style={{ ...S.btnDanger, marginLeft: 8 }} onClick={() => setIntForm(f => ({ ...f, company_logo: '' }))}>Remove</button>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label style={S.label}>Explorer Screenshot (slide 8)</label>
+                <input type="file" accept="image/*" onChange={e => {
+                  const file = e.target.files[0]; if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = (ev) => setIntForm(f => ({ ...f, explorer_screenshot: ev.target.result }))
+                  reader.readAsDataURL(file)
+                }} style={{ ...S.input, padding: '6px 12px' }} />
+                {intForm.explorer_screenshot && (
+                  <div style={{ marginTop: 8 }}>
+                    <img src={intForm.explorer_screenshot} alt="Screenshot" style={{ height: 60, borderRadius: 4 }} />
+                    <button style={{ ...S.btnDanger, marginLeft: 8 }} onClick={() => setIntForm(f => ({ ...f, explorer_screenshot: '' }))}>Remove</button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button style={S.btn} onClick={submitIntegration}>Create Integration Proposal</button>
             </div>
           </div>
         )}

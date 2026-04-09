@@ -27,3 +27,13 @@ CREATE TABLE certificates (
 
 -- Start cert_number at 3 as requested
 SELECT setval('certificates_cert_number_seq', 2);
+
+-- Integration proposals table
+CREATE TABLE integration_proposals (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  company TEXT NOT NULL,
+  proposal_date TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE integration_proposals DISABLE ROW LEVEL SECURITY;

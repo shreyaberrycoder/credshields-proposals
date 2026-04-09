@@ -37,6 +37,32 @@ export default async function MultichainProposalPage({ params }) {
   }
   const chainsInScope = ef.chainsInScope || ''
 
+  // Optional sections
+  const customTextBlock = (placement) => (
+    ef.customText && ef.customTextSection === placement ? (
+      <div className="section page-break">
+        <div className="wrap">
+          <div className="section-label">Additional Information</div>
+          <div style={{ fontSize: 14, color: '#e8edf5', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{ef.customText}</div>
+        </div>
+      </div>
+    ) : null
+  )
+  const paymentBlock = (placement) => (
+    ef.paymentStructure && ef.paymentSection === placement ? (
+      <div className="section page-break">
+        <div className="wrap">
+          <div className="section-label">Payment Structure</div>
+          <h2 className="section-title">Payment <span className="accent">Terms</span></h2>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: 24 }}>
+            <div style={{ fontSize: 14, color: '#e8edf5', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{ef.paymentStructure}</div>
+          </div>
+        </div>
+      </div>
+    ) : null
+  )
+  const optionalSections = (placement) => <>{customTextBlock(placement)}{paymentBlock(placement)}</>
+
   return (
     <>
       <title>{`${proposal.company} | Multi-Chain Deployment Audit`}</title>
@@ -223,6 +249,8 @@ export default async function MultichainProposalPage({ params }) {
         </div>
       </div>
 
+      {optionalSections('after_cover')}
+
       {/* -- OVERVIEW -- */}
       <div className="section page-break">
         <div className="wrap">
@@ -248,6 +276,8 @@ export default async function MultichainProposalPage({ params }) {
         </div>
       </div>
 
+      {optionalSections('after_overview')}
+
       {/* -- VULNERABILITY COVERAGE -- */}
       <div className="section page-break">
         <div className="wrap">
@@ -267,6 +297,8 @@ export default async function MultichainProposalPage({ params }) {
           </table>
         </div>
       </div>
+
+      {optionalSections('after_vulnerabilities')}
 
       {/* -- PRICING -- */}
       <div className="section page-break">
@@ -306,6 +338,8 @@ export default async function MultichainProposalPage({ params }) {
         </div>
       </div>
 
+      {optionalSections('after_pricing')}
+
       {/* -- METHODOLOGY -- */}
       <div className="section page-break">
         <div className="wrap">
@@ -323,6 +357,8 @@ export default async function MultichainProposalPage({ params }) {
           ))}
         </div>
       </div>
+
+      {optionalSections('after_timeline')}
 
       {/* -- DELIVERABLES -- */}
       <div className="section page-break">
@@ -350,6 +386,8 @@ export default async function MultichainProposalPage({ params }) {
         </div>
       </div>
 
+      {optionalSections('after_deliverables')}
+
       {/* -- TRACK RECORD -- */}
       <div className="section page-break">
         <div className="wrap">
@@ -368,6 +406,8 @@ export default async function MultichainProposalPage({ params }) {
           ))}
         </div>
       </div>
+
+      {optionalSections('after_track_record')}
 
       {/* -- COMPARISON -- */}
       <div className="section page-break">
@@ -401,6 +441,9 @@ export default async function MultichainProposalPage({ params }) {
           </table>
         </div>
       </div>
+
+      {optionalSections('after_comparison')}
+      {optionalSections('before_cta')}
 
       {/* -- CTA -- */}
       <div className="cta">

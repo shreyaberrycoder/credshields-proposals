@@ -300,7 +300,7 @@ export default async function PdfPage({ params }) {
             </p>
             <div className="cover-meta">
               <div><div className="meta-label">Prepared by</div><div className="meta-value">CredShields Technologies Pte. Ltd.</div></div>
-              <div><div className="meta-label">Scope</div><div className="meta-value">{proposal.company}</div></div>
+              <div><div className="meta-label">Scope</div><div className="meta-value">{proposal.scope_description || proposal.company}</div></div>
               <div><div className="meta-label">Engagement Price</div><div className="meta-green">${fmt(proposal.final_price)} USD</div></div>
               {isRedTeam && ef.threatActorProfile && <div><div className="meta-label">Threat Profile</div><div className="meta-value">{ef.threatActorProfile}</div></div>}
             </div>

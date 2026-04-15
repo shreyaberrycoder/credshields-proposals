@@ -680,7 +680,7 @@ export default function Dashboard() {
             </div>
 
             {/* ── LOC ── */}
-            {['smart_contract', 'fuzzing', 'multichain'].includes(form.proposalType) && (
+            {['smart_contract', 'fuzzing', 'multichain', 'daml'].includes(form.proposalType) && (
               <div style={{ marginBottom: 14 }}>
                 <label style={S.label}>Lines of Code (LOC)</label>
                 <input style={S.input} type="number" placeholder="1798" value={form.loc} onChange={e => setF('loc', e.target.value)} />
@@ -843,10 +843,10 @@ export default function Dashboard() {
             {!['red_team'].includes(form.proposalType) && (
               <>
                 <div style={S.sectionHdr}>Vulnerability Coverage</div>
-                {['smart_contract','fuzzing','multichain','web_app','mobile'].includes(form.proposalType) && (
+                {['smart_contract','fuzzing','multichain','web_app','mobile','daml'].includes(form.proposalType) && (
                   <div style={{ background: 'rgba(79,255,164,0.04)', border: '1px solid rgba(79,255,164,0.15)', borderRadius: 4, padding: '10px 14px', fontFamily: 'monospace', fontSize: 11, color: '#4fffa4', marginBottom: 12 }}>
                     ✓ Auto-populated with {
-                      { smart_contract: '13 Smart Contract', fuzzing: '12 Fuzz Testing', multichain: '12 Multi-Chain', web_app: '14 Web Application (OWASP)', mobile: '12 OWASP Mobile' }[form.proposalType]
+                      { smart_contract: '13 Smart Contract', fuzzing: '12 Fuzz Testing', multichain: '12 Multi-Chain', web_app: '14 Web Application (OWASP)', mobile: '12 OWASP Mobile', daml: '12 Daml' }[form.proposalType]
                     } vulnerability categories
                   </div>
                 )}

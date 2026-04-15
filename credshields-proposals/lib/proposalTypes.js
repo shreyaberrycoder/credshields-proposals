@@ -40,6 +40,41 @@ export const PROPOSAL_TYPES = {
     ],
   },
 
+  // ── DAML ───────────────────────────────────────────────────────────────────
+  daml: {
+    label: 'Daml Smart Contract Audit',
+    extraFields: ['loc'],
+    methodology: [
+      { day: 'Day 1',    title: 'Scope & Kickoff',                  desc: 'Align on Daml models in scope, workflow boundaries, Canton topology, and integration surface. Repo + DAR access granted. Slot locked with 50% deposit.' },
+      { day: 'Days 2–4', title: 'Template & Authorization Review',  desc: 'Line-by-line review of templates, signatories, controllers, observers, and choice logic. Validation of party authorization, consuming/non-consuming choices, and contract-key uniqueness guarantees.' },
+      { day: 'Days 4–6', title: 'Workflow & Privacy Analysis',      desc: 'End-to-end workflow simulation across parties. Sub-transaction privacy, divulgence paths, disclosure correctness, and Canton domain trust assumptions validated against the intended business model.' },
+      { day: 'Days 6–7', title: 'Integration & Off-Ledger Surface', desc: 'Review of Daml Triggers, automation bots, JSON API / Ledger API consumers, and DAR package-ID management. Assessment of upgrade safety and interface/template evolution paths.' },
+      { day: 'Day 8',    title: 'Draft Report Delivered',           desc: 'All findings with severity ratings, exploit scenarios, and fix recommendations mapped to Daml best practices. Readable by Daml engineers and non-technical stakeholders.' },
+      { day: 'Day 9',    title: 'Your Team Applies Fixes',          desc: "We're on Telegram/Discord/Slack to answer questions and review proposed solutions during remediation." },
+      { day: 'Day 10',   title: 'Retest + Certification',           desc: 'We verify every fix, check for new issues introduced during remediation, and issue your public audit report and security badge.' },
+    ],
+    competitors: (price) => [
+      { name: 'Trail of Bits',        price: `$${r(price*6)}+`, turnaround: '10–14 weeks', notes: 'Limited Daml-specific expertise' },
+      { name: 'Runtime Verification', price: `$${r(price*5)}+`, turnaround: '8–12 weeks',  notes: 'Formal methods focus, slow cycle' },
+      { name: 'Internal Review',      price: 'Internal cost',   turnaround: 'Unknown',     notes: 'Misses privacy / authorization edge cases' },
+      { name: 'CredShields',          price: `$${n(price)}`,    turnaround: '10 days avg', notes: '✓ Daml-native, full workflow coverage', highlight: true },
+    ],
+    vulnerabilities: [
+      { vuln: 'Signatory & Authorization Flaws',     checks: ['Missing or incorrect signatories', 'Unauthorized party acting as controller', 'Authorization failures in composed choices'] },
+      { vuln: 'Choice Controller Logic',             checks: ['Consuming vs non-consuming misuse', 'Controller vs observer confusion', 'Choice-guard bypass patterns'] },
+      { vuln: 'Privacy & Disclosure',                checks: ['Unintended divulgence via fetch/exercise', 'Sub-transaction privacy leakage', 'Observer over-disclosure'] },
+      { vuln: 'Contract Key Integrity',              checks: ['Key uniqueness violations', 'Key maintainer correctness', 'Stale key reference bugs'] },
+      { vuln: 'Template Evolution & Upgrade Safety', checks: ['Interface/template upgrade compatibility', 'DAR package-ID pinning', 'Breaking-change detection across versions'] },
+      { vuln: 'Workflow Correctness',                checks: ['State-machine invariant breaks', 'Race conditions across choices', 'Archive/rollback path analysis'] },
+      { vuln: 'Business Logic & Financial Modeling', checks: ['Asset conservation and supply invariants', 'Fee and settlement correctness', 'Rounding / precision errors'] },
+      { vuln: 'Daml Trigger & Automation Security',  checks: ['Trigger authorization boundaries', 'Replay and idempotency guarantees', 'Failure-mode recovery'] },
+      { vuln: 'Ledger API / JSON API Exposure',      checks: ['Unauthenticated endpoint access', 'Party impersonation via token misuse', 'Information leakage via query API'] },
+      { vuln: 'Canton Topology & Trust',             checks: ['Domain trust assumptions', 'Synchronizer/participant compromise impact', 'Cross-domain transfer safety'] },
+      { vuln: 'Off-Ledger Integration',              checks: ['Oracle and external service trust', 'Off-ledger secret management', 'Replay across integration boundaries'] },
+      { vuln: 'Denial of Service & Resource Abuse',  checks: ['Unbounded choice/fetch loops', 'Party-held active-contract bloat', 'Trigger/bot starvation scenarios'] },
+    ],
+  },
+
   // ── FUZZING ────────────────────────────────────────────────────────────────
   fuzzing: {
     label: 'Fuzz Testing (FaaS)',

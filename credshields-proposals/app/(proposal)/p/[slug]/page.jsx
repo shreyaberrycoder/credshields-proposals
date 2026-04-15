@@ -81,6 +81,7 @@ export default async function PdfPage({ params }) {
     mobile:         'Mobile App Security Audit',
     traditional:    'Security Assessment Proposal',
     red_team:       'Red Team Engagement',
+    daml:           'Daml Smart Contract Audit',
   }
 
   return (

@@ -220,6 +220,7 @@ export function ProposalPDF({ proposal }) {
     mobile:         ['Mobile App\nSecurity\n', 'Audit'],
     traditional:    ['Security\nAssessment\n', 'Proposal'],
     red_team:       ['Think like\nthe enemy.\n', 'Before they do.'],
+    daml:           ['Daml\nSmart Contract\n', 'Audit'],
   }
   const [coverMain, coverAccent] = coverTitles[type] || coverTitles.smart_contract
 

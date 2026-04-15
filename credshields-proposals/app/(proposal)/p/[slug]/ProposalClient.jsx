@@ -190,6 +190,7 @@ function ProposalContent({ proposal, isPdf }) {
     mobile:         <>{`Mobile App`}<br />{`Security`}<br /><span style={{ color: '#4fffa4' }}>Audit</span></>,
     traditional:    <>{`Security`}<br />{`Assessment`}<br /><span style={{ color: '#4fffa4' }}>Proposal</span></>,
     red_team:       <>{`Think like`}<br />{`the`}<br /><span style={{ color: '#4fffa4' }}>enemy.</span></>,
+    daml:           <>{`Daml`}<br />{`Smart Contract`}<br /><span style={{ color: '#4fffa4' }}>Audit</span></>,
   }
 
   return (

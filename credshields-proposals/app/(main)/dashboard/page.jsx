@@ -81,7 +81,10 @@ export default function Dashboard() {
     )
     const failed = results.filter(r => !r.ok)
     const ok = results.length - failed.length
+    const succeededIds = new Set(results.filter(r => r.ok).map(r => r.id))
     setSelectedProposals(new Set())
+    // Optimistic removal
+    setProposals(prev => prev.filter(p => !succeededIds.has(p.id)))
     if (failed.length) {
       console.error('Bulk delete failures:', failed)
       showToast(`${ok} deleted, ${failed.length} failed: ${failed[0].err}`, 'error')
@@ -172,7 +175,8 @@ export default function Dashboard() {
   // ── Data ────────────────────────────────────────────────────────────────────
   async function loadProposals() {
     setLoading(true)
-    const res = await fetch('/api/proposals', { cache: 'no-store' })
+    // Bust any edge/CDN cache with a timestamp param + no-store
+    const res = await fetch(`/api/proposals?t=${Date.now()}`, { cache: 'no-store' })
     const data = await res.json()
     setProposals(Array.isArray(data) ? data : [])
     setLoading(false)
@@ -334,7 +338,10 @@ export default function Dashboard() {
       showToast(`Delete failed: ${err.error || res.status}`, 'error')
       return
     }
-    showToast('Deleted.', 'success'); loadProposals()
+    // Optimistic removal so the row disappears even if the list cache is stale
+    setProposals(prev => prev.filter(p => p.id !== id))
+    showToast('Deleted.', 'success')
+    loadProposals()
   }
 
   // ── Start edit ──────────────────────────────────────────────────────────────

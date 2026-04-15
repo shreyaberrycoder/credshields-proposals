@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const admin = () => createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -21,7 +24,10 @@ export async function GET() {
       const { data: views } = await db.from('views').select('proposal_id').in('proposal_id', ids)
       views?.forEach(v => { viewCounts[v.proposal_id] = (viewCounts[v.proposal_id] || 0) + 1 })
     }
-    return NextResponse.json(proposals.map(p => ({ ...p, views: viewCounts[p.id] || 0 })))
+    return NextResponse.json(
+      proposals.map(p => ({ ...p, views: viewCounts[p.id] || 0 })),
+      { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate', 'CDN-Cache-Control': 'no-store' } }
+    )
   } catch (err) {
     console.error('GET /api/proposals error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })

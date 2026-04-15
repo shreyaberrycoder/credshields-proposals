@@ -285,7 +285,7 @@ function ProposalContent({ proposal, isPdf }) {
                 ...(extraFields.complianceFramework && extraFields.complianceFramework !== 'None / Not applicable' ? [['Compliance Target', extraFields.complianceFramework]] : []),
                 ...(extraFields.crownJewels ? [['Crown Jewels / Objectives', extraFields.crownJewels]] : []),
                 ...(extraFields.threatActorProfile ? [['Threat Actor Profile', extraFields.threatActorProfile]] : []),
-                ['Engagement Duration', `${proposal.days} ${isRedTeam ? 'phases' : 'Business Days'}`],
+                ['Engagement Duration', `${proposal.days} ${isRedTeam ? (proposal.days == 1 ? 'phase' : 'phases') : (proposal.days == 1 ? 'Business Day' : 'Business Days')}`],
                 ...(disc > 0 ? [['Standard Price', null, `$${fmt(proposal.original_price)} USD`]] : []),
               ].map(([label, val, strike]) => (
                 <tr key={label} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -360,7 +360,7 @@ function ProposalContent({ proposal, isPdf }) {
 
       {/* TIMELINE */}
       <Section label={isRedTeam ? '04 Methodology' : 'Audit Timeline'}
-        title={isRedTeam ? <>Intelligence-led.<br /><span style={{ color: '#4fffa4' }}>Objective-based.</span></> : <>Done in <span style={{ color: '#4fffa4' }}>{proposal.days} Days</span></>}
+        title={isRedTeam ? <>Intelligence-led.<br /><span style={{ color: '#4fffa4' }}>Objective-based.</span></> : <>Done in <span style={{ color: '#4fffa4' }}>{proposal.days} {proposal.days == 1 ? 'Day' : 'Days'}</span></>}
         sub={isRedTeam ? "We follow a structured adversarial methodology modelled on real-world attacker playbooks — scoped around your specific objectives, not generic vulnerability lists." : "Fast without cutting corners. Here is exactly what happens and when."}>
         <div>
           {timeline.map((item, i) => (
@@ -548,38 +548,6 @@ function ProposalContent({ proposal, isPdf }) {
               </div>
             </div>
           ))}
-        </div>
-      </Section>
-
-      {/* COMPARISON */}
-      <Section label="Why CredShields" title={<>How We Compare</>}
-        sub={isRedTeam ? "You're evaluating red team providers. Here's how we stack up." : "You're comparing. We want you to."}>
-        <div style={{ border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, overflow: 'auto', background: '#0d1120' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
-            <thead>
-              <tr>
-                {['', 'CredShields ✦', ...compRows.map(c => c.name)].map((h, i) => (
-                  <th key={i} style={{ padding: '14px 20px', textAlign: 'left', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: i === 1 ? '#4fffa4' : '#7a8a9e', borderBottom: '1px solid rgba(255,255,255,0.07)', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { label: 'Price',           us: `$${Number(price).toLocaleString()}`,      vals: compRows.map(c => c.price) },
-                { label: 'Turnaround',      us: `${proposal.days} ${isRedTeam ? 'phases' : 'days'}`, vals: compRows.map(c => c.turnaround) },
-                { label: isRedTeam ? 'Web3-native' : 'Free retest',  us: isRedTeam ? '✓ Purpose-built' : '✓ 3 months',  vals: compRows.map(() => isRedTeam ? '✗' : '✗') },
-                { label: isRedTeam ? 'Remediation support' : 'On-chain seal', us: '✓ Included', vals: compRows.map(() => '✗') },
-                { label: 'OWASP mapped',    us: '✓ Co-authored',     vals: compRows.map(() => '—') },
-                { label: 'Direct support',  us: '✓ Telegram',        vals: compRows.map(c => c.notes) },
-              ].map(row => (
-                <tr key={row.label} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <td style={{ padding: '14px 20px', fontSize: 13, color: '#7a8a9e' }}>{row.label}</td>
-                  <td style={{ padding: '14px 20px', fontSize: 13, background: 'rgba(79,255,164,0.03)', color: row.us.startsWith('$') || row.us.startsWith('✓') ? '#4fffa4' : '#e8edf5', fontWeight: row.us.startsWith('$') ? 700 : 400, fontFamily: row.us.startsWith('$') ? 'monospace' : 'inherit' }}>{row.us}</td>
-                  {row.vals.map((v, i) => <td key={i} style={{ padding: '14px 20px', fontSize: 13, color: v === '✗' ? '#ff4f6a' : '#7a8a9e' }}>{v}</td>)}
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </Section>
 

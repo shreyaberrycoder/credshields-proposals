@@ -349,7 +349,7 @@ export function ProposalPDF({ proposal }) {
               ...(ef.complianceFramework && ef.complianceFramework !== 'None / Not applicable' ? [['Compliance Target', ef.complianceFramework]] : []),
               ...(ef.crownJewels ? [['Crown Jewels / Objectives', ef.crownJewels]] : []),
               ...(ef.threatActorProfile ? [['Threat Actor Profile', ef.threatActorProfile]] : []),
-              ['Duration', `${proposal.days} ${isRedTeam ? 'phases' : 'Business Days'}`],
+              ['Duration', `${proposal.days} ${isRedTeam ? (proposal.days == 1 ? 'phase' : 'phases') : (proposal.days == 1 ? 'Business Day' : 'Business Days')}`],
               ...(disc > 0 ? [['Standard Price', null, `$${fmt(proposal.original_price)} USD`]] : []),
             ].map(([label, val, strike]) => (
               <View key={label} style={s.priceRow}>
@@ -446,7 +446,7 @@ export function ProposalPDF({ proposal }) {
           <SectionHeader
             label={isRedTeam ? '04 Methodology' : 'Audit Timeline'}
             title={isRedTeam ? 'Intelligence-led. ' : `Done in ${proposal.days} `}
-            titleGreen={isRedTeam ? 'Objective-based.' : 'Days'}
+            titleGreen={isRedTeam ? 'Objective-based.' : (proposal.days == 1 ? 'Day' : 'Days')}
             sub={isRedTeam
               ? 'Structured adversarial methodology modelled on real-world attacker playbooks — scoped around your specific objectives.'
               : 'Fast without cutting corners. Here is exactly what happens and when.'}
@@ -588,41 +588,7 @@ export function ProposalPDF({ proposal }) {
         </View>
       </Page>
 
-      {/* ══════════════════════════════════════════════════════════
-          PAGE — COMPARISON
-      ══════════════════════════════════════════════════════════ */}
       <Page size="A4" style={s.page}>
-        <View style={s.section}>
-          <SectionHeader
-            label="Why CredShields"
-            title="How We Compare"
-            sub={isRedTeam ? "You're evaluating red team providers. Here's how we stack up." : "You're comparing. We want you to."}
-          />
-          <View style={s.compTable}>
-            <View style={s.compTh}>
-              <Text style={{ ...s.compThCell, flex: 1.2 }}> </Text>
-              <Text style={s.compThUs}>CredShields ✦</Text>
-              {compRows.map(c => <Text key={c.name} style={s.compThCell}>{c.name}</Text>)}
-            </View>
-            {[
-              { label: 'Price',           us: `$${Number(price).toLocaleString()}`,                  vals: compRows.map(c => c.price) },
-              { label: 'Turnaround',      us: `${proposal.days} ${isRedTeam ? 'phases' : 'days'}`,  vals: compRows.map(c => c.turnaround) },
-              { label: isRedTeam ? 'Web3-native' : 'Free retest',  us: isRedTeam ? '✓ Purpose-built' : '✓ 3 months', vals: compRows.map(() => '✗') },
-              { label: 'Remediation',     us: '✓ Included',                                          vals: compRows.map(() => '✗') },
-              { label: 'OWASP mapped',    us: '✓ Co-authored',                                       vals: compRows.map(() => '—') },
-              { label: 'Direct support',  us: '✓ Telegram',                                          vals: compRows.map(c => c.notes) },
-            ].map(row => (
-              <View key={row.label} style={s.compRow}>
-                <Text style={{ ...s.compLabel, flex: 1.2 }}>{row.label}</Text>
-                <Text style={s.compCellUs}>{row.us}</Text>
-                {row.vals.map((v, i) => (
-                  <Text key={i} style={v === '✗' ? s.compCellBad : s.compCell}>{v}</Text>
-                ))}
-              </View>
-            ))}
-          </View>
-        </View>
-
         {/* CTA */}
         <View style={s.cta}>
           <Text style={s.ctaTitle}>

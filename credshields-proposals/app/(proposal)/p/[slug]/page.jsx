@@ -367,7 +367,7 @@ export default async function PdfPage({ params }) {
                 ...(ef.complianceFramework && ef.complianceFramework !== 'None / Not applicable' ? [['Compliance', ef.complianceFramework]] : []),
                 ...(ef.crownJewels ? [['Crown Jewels', ef.crownJewels]] : []),
                 ...(ef.threatActorProfile ? [['Threat Profile', ef.threatActorProfile]] : []),
-                ['Duration', `${proposal.days} ${isRedTeam ? 'phases' : 'Business Days'}`],
+                ['Duration', `${proposal.days} ${isRedTeam ? (proposal.days == 1 ? 'phase' : 'phases') : (proposal.days == 1 ? 'Business Day' : 'Business Days')}`],
                 ...(disc > 0 ? [['Standard Price', null, `$${fmt(proposal.original_price)} USD`]] : []),
               ].map(([label, val, strike]) => (
                 <div key={label} className="price-row">
@@ -439,7 +439,7 @@ export default async function PdfPage({ params }) {
         <div className="section page-break">
           <div className="wrap">
             <div className="section-label">{isRedTeam ? '04 Methodology' : 'Audit Timeline'}</div>
-            <h2 className="section-title">{isRedTeam ? <>Intelligence-led. <span className="accent">Objective-based.</span></> : <>Done in <span className="accent">{proposal.days} Days</span></>}</h2>
+            <h2 className="section-title">{isRedTeam ? <>Intelligence-led. <span className="accent">Objective-based.</span></> : <>Done in <span className="accent">{proposal.days} {proposal.days == 1 ? 'Day' : 'Days'}</span></>}</h2>
             <p className="section-sub">{isRedTeam ? 'Structured adversarial methodology modelled on real-world attacker playbooks.' : 'Fast without cutting corners. Here is exactly what happens and when.'}</p>
             {timeline.map((item, i) => (
               <div key={i} className="tl-row avoid-break">
@@ -560,39 +560,6 @@ export default async function PdfPage({ params }) {
         </div>
 
         {optionalSections('after_track_record')}
-
-        {/* ── COMPARISON ── */}
-        <div className="section page-break">
-          <div className="wrap">
-            <div className="section-label">Why CredShields</div>
-            <h2 className="section-title">How We <span className="accent">Compare</span></h2>
-            <table className="comp-table">
-              <thead>
-                <tr>
-                  <th className="comp-th"> </th>
-                  <th className="comp-th-us">CredShields ✦</th>
-                  {compRows.map(c => <th key={c.name} className="comp-th">{c.name}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { label: 'Price',           us: `$${fmt(proposal.final_price)}`,                       vals: compRows.map(c => c.price) },
-                  { label: 'Turnaround',      us: `${proposal.days} ${isRedTeam ? 'phases' : 'days'}`,  vals: compRows.map(c => c.turnaround) },
-                  { label: isRedTeam ? 'Web3-native' : 'Free retest', us: isRedTeam ? '✓ Purpose-built' : '✓ 3 months', vals: compRows.map(() => '✗') },
-                  { label: 'Remediation',     us: '✓ Included',                                          vals: compRows.map(() => '✗') },
-                  { label: 'OWASP mapped',    us: '✓ Co-authored',                                       vals: compRows.map(() => '-') },
-                  { label: 'Direct support',  us: '✓ Telegram',                                          vals: compRows.map(c => c.notes) },
-                ].map(row => (
-                  <tr key={row.label}>
-                    <td className="comp-td">{row.label}</td>
-                    <td className="comp-td-us">{row.us}</td>
-                    {row.vals.map((v, i) => <td key={i} className={v === '✗' ? 'comp-td-bad' : 'comp-td'}>{v}</td>)}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
 
         {optionalSections('after_comparison')}
         {optionalSections('before_cta')}

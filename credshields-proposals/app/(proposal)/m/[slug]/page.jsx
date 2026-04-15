@@ -319,7 +319,7 @@ export default async function MultichainProposalPage({ params }) {
               ['Client', proposal.client_name],
               ...(chainsInScope ? [['Chains in Scope', chainsInScope]] : []),
               ...(proposal.loc ? [['Lines of Code', fmt(proposal.loc)]] : []),
-              ['Duration', `${proposal.days} Business Days`],
+              ['Duration', `${proposal.days} ${proposal.days == 1 ? 'Business Day' : 'Business Days'}`],
               ...(disc > 0 ? [['Standard Price', null, `$${fmt(proposal.original_price)} USD`]] : []),
             ].map(([label, val, strike]) => (
               <div key={label} className="price-row">
@@ -344,7 +344,7 @@ export default async function MultichainProposalPage({ params }) {
       <div className="section page-break">
         <div className="wrap">
           <div className="section-label">04 Methodology</div>
-          <h2 className="section-title">Done in <span className="accent">{proposal.days} Days</span></h2>
+          <h2 className="section-title">Done in <span className="accent">{proposal.days} {proposal.days == 1 ? 'Day' : 'Days'}</span></h2>
           <p className="section-sub">Our multi-chain audit methodology is structured around the actual attack paths adversaries use. Every phase produces actionable findings with chain-specific remediation guidance.</p>
           {timeline.map((item, i) => (
             <div key={i} className="tl-row avoid-break">

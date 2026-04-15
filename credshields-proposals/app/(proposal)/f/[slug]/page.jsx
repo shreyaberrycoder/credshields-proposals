@@ -287,7 +287,7 @@ export default async function FuzzProposalPage({ params }) {
             {[
               ['Client', proposal.client_name],
               ...(proposal.loc ? [['Lines of Code', fmt(proposal.loc)]] : []),
-              ['Duration', `${proposal.days} Business Days`],
+              ['Duration', `${proposal.days} ${proposal.days == 1 ? 'Business Day' : 'Business Days'}`],
               ...(disc > 0 ? [['Standard Price', null, `$${fmt(proposal.original_price)} USD`]] : []),
             ].map(([label, val, strike]) => (
               <div key={label} className="price-row">
@@ -332,7 +332,7 @@ export default async function FuzzProposalPage({ params }) {
       <div className="section page-break">
         <div className="wrap">
           <div className="section-label">04 Campaign Methodology</div>
-          <h2 className="section-title">Done in <span className="accent">{proposal.days} Days</span></h2>
+          <h2 className="section-title">Done in <span className="accent">{proposal.days} {proposal.days == 1 ? 'Day' : 'Days'}</span></h2>
           <p className="section-sub">How we run your fuzz campaign: structured, reproducible, and fast.</p>
           {timeline.map((item, i) => (
             <div key={i} className="tl-row avoid-break">

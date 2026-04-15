@@ -9,6 +9,7 @@ const admin = () => createClient(
 export async function PATCH(req, { params }) {
   try {
     const db   = admin()
+    const { id } = await params
     const body = await req.json()
     const updates = {}
     if (body.clientName            !== undefined) updates.client_name            = body.clientName
@@ -23,7 +24,7 @@ export async function PATCH(req, { params }) {
     if (body.customVulnerabilities !== undefined) updates.custom_vulnerabilities = body.customVulnerabilities
     updates.updated_at = new Date().toISOString()
 
-    const { data, error } = await db.from('proposals').update(updates).eq('id', params.id).select().single()
+    const { data, error } = await db.from('proposals').update(updates).eq('id', id).select().single()
     if (error) throw error
     return NextResponse.json(data)
   } catch (err) {
@@ -35,11 +36,32 @@ export async function PATCH(req, { params }) {
 export async function DELETE(req, { params }) {
   try {
     const db = admin()
-    await db.from('leads').delete().eq('proposal_id', params.id)
-    await db.from('views').delete().eq('proposal_id', params.id)
-    const { error } = await db.from('proposals').delete().eq('id', params.id)
-    if (error) throw error
-    return NextResponse.json({ success: true })
+    const { id } = await params
+
+    const leadsRes = await db.from('leads').delete().eq('proposal_id', id)
+    if (leadsRes.error) console.error('leads delete error:', leadsRes.error)
+
+    const viewsRes = await db.from('views').delete().eq('proposal_id', id)
+    if (viewsRes.error) console.error('views delete error:', viewsRes.error)
+
+    const { data, error, count } = await db
+      .from('proposals')
+      .delete({ count: 'exact' })
+      .eq('id', id)
+      .select()
+
+    if (error) {
+      console.error('proposals delete error:', error)
+      return NextResponse.json({ error: error.message, details: error }, { status: 500 })
+    }
+    if (!data || data.length === 0) {
+      return NextResponse.json(
+        { error: 'No rows deleted — likely blocked by RLS policy or row not found', deletedCount: 0 },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({ success: true, deletedCount: count ?? data.length })
   } catch (err) {
     console.error('DELETE /api/proposals error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })

@@ -73,9 +73,21 @@ export default function Dashboard() {
   async function bulkDeleteProposals() {
     if (!selectedProposals.size) return
     if (!confirm(`Delete ${selectedProposals.size} proposal(s)?`)) return
-    await Promise.all([...selectedProposals].map(id => fetch(`/api/proposals/${id}`, { method: 'DELETE' })))
+    const results = await Promise.all(
+      [...selectedProposals].map(id =>
+        fetch(`/api/proposals/${id}`, { method: 'DELETE' })
+          .then(async r => ({ id, ok: r.ok, err: r.ok ? null : (await r.json().catch(() => ({}))).error || `HTTP ${r.status}` }))
+      )
+    )
+    const failed = results.filter(r => !r.ok)
+    const ok = results.length - failed.length
     setSelectedProposals(new Set())
-    showToast(`${selectedProposals.size} proposal(s) deleted.`)
+    if (failed.length) {
+      console.error('Bulk delete failures:', failed)
+      showToast(`${ok} deleted, ${failed.length} failed: ${failed[0].err}`, 'error')
+    } else {
+      showToast(`${ok} proposal(s) deleted.`)
+    }
     loadProposals()
   }
 
@@ -160,7 +172,7 @@ export default function Dashboard() {
   // ── Data ────────────────────────────────────────────────────────────────────
   async function loadProposals() {
     setLoading(true)
-    const res = await fetch('/api/proposals')
+    const res = await fetch('/api/proposals', { cache: 'no-store' })
     const data = await res.json()
     setProposals(Array.isArray(data) ? data : [])
     setLoading(false)
@@ -316,7 +328,12 @@ export default function Dashboard() {
   // ── Delete ──────────────────────────────────────────────────────────────────
   async function deleteProposal(id) {
     if (!confirm('Delete this proposal?')) return
-    await fetch(`/api/proposals/${id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/proposals/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+      showToast(`Delete failed: ${err.error || res.status}`, 'error')
+      return
+    }
     showToast('Deleted.', 'success'); loadProposals()
   }
 

@@ -72,9 +72,11 @@ export default function Dashboard() {
 
   async function bulkDeleteProposals() {
     if (!selectedProposals.size) return
-    if (!confirm(`Delete ${selectedProposals.size} proposal(s)?`)) return
+    const validIds = [...selectedProposals].filter(Boolean)
+    if (!validIds.length) { showToast('No valid IDs to delete', 'error'); return }
+    if (!confirm(`Delete ${validIds.length} proposal(s)?`)) return
     const results = await Promise.all(
-      [...selectedProposals].map(id =>
+      validIds.map(id =>
         fetch(`/api/proposals/${id}`, { method: 'DELETE' })
           .then(async r => ({ id, ok: r.ok, err: r.ok ? null : (await r.json().catch(() => ({}))).error || `HTTP ${r.status}` }))
       )
@@ -83,7 +85,6 @@ export default function Dashboard() {
     const ok = results.length - failed.length
     const succeededIds = new Set(results.filter(r => r.ok).map(r => r.id))
     setSelectedProposals(new Set())
-    // Optimistic removal
     setProposals(prev => prev.filter(p => !succeededIds.has(p.id)))
     if (failed.length) {
       console.error('Bulk delete failures:', failed)
@@ -331,6 +332,7 @@ export default function Dashboard() {
 
   // ── Delete ──────────────────────────────────────────────────────────────────
   async function deleteProposal(id) {
+    if (!id) { showToast('Delete failed: proposal has no ID', 'error'); return }
     if (!confirm('Delete this proposal?')) return
     const res = await fetch(`/api/proposals/${id}`, { method: 'DELETE' })
     if (!res.ok) {
@@ -338,7 +340,6 @@ export default function Dashboard() {
       showToast(`Delete failed: ${err.error || res.status}`, 'error')
       return
     }
-    // Optimistic removal so the row disappears even if the list cache is stale
     setProposals(prev => prev.filter(p => p.id !== id))
     showToast('Deleted.', 'success')
     loadProposals()

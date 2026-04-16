@@ -40,30 +40,11 @@ export async function DELETE(req, { params }) {
     const db = admin()
     const { id } = await params
 
-    const leadsRes = await db.from('leads').delete().eq('proposal_id', id)
-    if (leadsRes.error) console.error('leads delete error:', leadsRes.error)
-
-    const viewsRes = await db.from('views').delete().eq('proposal_id', id)
-    if (viewsRes.error) console.error('views delete error:', viewsRes.error)
-
-    const { data, error, count } = await db
-      .from('proposals')
-      .delete({ count: 'exact' })
-      .eq('id', id)
-      .select()
-
-    if (error) {
-      console.error('proposals delete error:', error)
-      return NextResponse.json({ error: error.message, details: error }, { status: 500 })
-    }
-    if (!data || data.length === 0) {
-      return NextResponse.json(
-        { error: 'No rows deleted — likely blocked by RLS policy or row not found', deletedCount: 0 },
-        { status: 404 }
-      )
-    }
-
-    return NextResponse.json({ success: true, deletedCount: count ?? data.length })
+    await db.from('leads').delete().eq('proposal_id', id)
+    await db.from('views').delete().eq('proposal_id', id)
+    const { error } = await db.from('proposals').delete().eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
   } catch (err) {
     console.error('DELETE /api/proposals error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })
